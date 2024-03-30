@@ -3,6 +3,7 @@ const axios = require('axios');
 class Multillm {
  constructor(provider, model = null, device_map = null) {
   this.provider = provider;
+  this.model = model;
   if (this.provider === 'openai') {
     const OpenAI = require('./providers/openai');
     return new OpenAI(this.model, this.device_map);
