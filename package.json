@@ -2,8 +2,8 @@
   "dependencies": {
     "axios": "^1.6.8"
   },
-  "name": "multillm-node",
-  "version": "1.0.0",
+  "name": "@arrowai/multillm",
+  "version": "1.1.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
