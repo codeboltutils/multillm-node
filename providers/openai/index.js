@@ -1,41 +1,31 @@
 const axios = require('axios');
 
 class OpenAI {
- constructor(model = null, device_map = null, apiKey = null) {
-      this.model = model;
-      this.device_map = device_map;
-      this.apiKey = apiKey; // Store the API key as an instance variable
-      this.apiEndpoint = this.getApiEndpoint(provider);
- }
+    constructor(model = null, device_map = null, apiKey = null, apiEndpoint = null) {
+        this.model = model;
+        this.device_map = device_map;
+        this.apiKey = apiKey; // Store the API key as an instance variable    
+        this.apiEndpoint = apiEndpoint != null ? `${apiEndpoint}/chat/completions` : 'https://api.openai.com/v1/chat/completions';
+    }
 
- getApiEndpoint(provider) {
-      switch (provider) {
-        case 'openai':
-          return 'https://api.openai.com/v1/engines/davinci-codex/completions';
-        default:
-          throw new Error(`Unsupported provider: ${provider}`);
-      }
- }
+    async createCompletion(options) {
+        try {
+            const response = await axios.post(this.apiEndpoint, {
+                model: options.model , // Default model if not provided
+                messages: options.messages, // Expecting an array of messages
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                     'Authorization': `Bearer ${this.apiKey}` // Use the API key from the instance variable
+                }
+            });
 
- static async createCompletion(options) {
-      try {
-        const response = await axios.post(this.apiEndpoint, {
-          model: this.model || options.model,
-          prompt: options.prompt,
-          max_tokens: options.max_tokens,
-          device_map: this.device_map || options.device_map,
-        }, {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}` // Use the API key from the instance variable
-          }
-        });
-
-        return response.data;
-      } catch (error) {
-        console.error('Error generating completion:', error);
-        return null;
-      }
- }
+            return response.data;
+        } catch (error) {
+            console.error('Error generating completion:', error);
+            return error;
+        }
+    }
 }
 
 module.exports = OpenAI;
