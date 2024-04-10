@@ -5,18 +5,19 @@ class OpenAI {
         this.model = model;
         this.device_map = device_map;
         this.apiKey = apiKey; // Store the API key as an instance variable    
-        this.apiEndpoint = apiEndpoint != null ? `${apiEndpoint}/chat/completions` : 'https://api.openai.com/v1/chat/completions';
+        this.apiEndpoint = apiEndpoint != null ? `${apiEndpoint}` : 'https://api.openai.com/v1/chat/completions';
     }
 
     async createCompletion(options) {
         try {
+            console.log(options.messages);
             const response = await axios.post(this.apiEndpoint, {
                 model: options.model , // Default model if not provided
                 messages: options.messages, // Expecting an array of messages
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                     'Authorization': `Bearer ${this.apiKey}` // Use the API key from the instance variable
+                    //  'Authorization': `Bearer ${this.apiKey}` // Use the API key from the instance variable
                 }
             });
 
