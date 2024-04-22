@@ -8,20 +8,23 @@ class Multillm {
 
     switch (this.provider) {
       case 'openai':
-        const OpenAI = require('./providers/openai');
-        return new OpenAI(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+         const OpenAI = require('./providers/openai');
+         return new OpenAI(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+         break
       case 'perplexity':
-        const Perplexity = require('./providers/perplexity');
-        return new Perplexity(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+         const Perplexity = require('./providers/perplexity');
+         return new Perplexity(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+         break
       case 'mistral':
-        const MistralAI = require('./providers/mistral');
-        return new MistralAI(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+         const MistralAI = require('./providers/mistral');
+         return new MistralAI(this.model, this.device_map, this.apiKey, this.apiEndpoint);
       default:
-        throw new Error(`Unsupported provider: ${this.provider}`);
-    }
+         console.log(`Unsupported provider: ${this.provider}`);
+         return this; // or any other default value or action you want to take
+     }
   }
 
-  static getProviders() {
+   getProviders() {
     return [
       {
         id: 1, logo: "https://github.com/shadcn.png",
@@ -30,7 +33,7 @@ class Multillm {
       },
       {
         id: 2, logo: "https://github.com/faisal004.png",
-        name: "OpenAI",
+        name: "Open AI",
         apiUrl: "https://api.openai.com/v1/chat/completions",
         key: "", keyAdded: false,
 
