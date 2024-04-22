@@ -14,6 +14,9 @@ class Multillm {
     throw new Error(`Unsupported provider: ${this.provider}`);
   }
  }
+ async getProviders() {
+   //get list of providers
+ }
 }
 
 module.exports = Multillm;
