@@ -30,7 +30,7 @@ class Multillm {
       },
       {
         id: 2, logo: "https://github.com/faisal004.png",
-        name: "Open AI",
+        name: "OpenAI",
         apiUrl: "https://api.openai.com/v1/chat/completions",
         key: "", keyAdded: false,
 
