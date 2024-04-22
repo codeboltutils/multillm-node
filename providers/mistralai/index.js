@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-class OpenAI {
+class MistralAI {
   constructor(
     model = null,
     device_map = null,
@@ -13,7 +13,7 @@ class OpenAI {
     this.apiEndpoint =
       apiEndpoint != null
         ? `${apiEndpoint}`
-        : "https://api.openai.com/v1/chat/completions";
+        : "https://api.mistral.ai/v1/chat/completions";
   }
 
   async createCompletion(options) {
@@ -41,7 +41,7 @@ class OpenAI {
   }
   async getModels() {
     try {
-      const response = await axios.get("https://api.openai.com/v1/models", {
+      const response = await axios.get("https://api.mistral.ai/v1/models", {
         headers: {
           "Content-Type": "application/json",
          "Authorization": `Bearer ${this.apiKey}`,
@@ -55,6 +55,6 @@ class OpenAI {
   }
 }
 
-module.exports = OpenAI;
+module.exports = MistralAI;
 
 

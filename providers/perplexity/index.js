@@ -1,10 +1,11 @@
+const perplexityModels= require("./models")
 class  Perplexity {
     constructor(model = null, device_map = null, apiKey = null, apiEndpoint = null) {
         this.model = model;
         this.device_map = device_map;
         this.apiKey = apiKey; // Store the API key as an instance variable
         //TODO change the api endpoint    
-        this.apiEndpoint = apiEndpoint != null ? `${apiEndpoint}` : 'https://api.openai.com/v1/chat/completions';
+        this.apiEndpoint = apiEndpoint != null ? `${apiEndpoint}` : 'https://api.perplexity.ai/chat/completions';
     }
 
     async createCompletion(options) {
@@ -28,17 +29,16 @@ class  Perplexity {
     }
     async getModels() {
         try {
-            //TODO check this api endpoint
-            const response = await axios.get(this.apiEndpoint, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    //  'Authorization': `Bearer ${this.apiKey}` // Use the API key from the instance variable
-                }
-            });
-            return response.data;
+          
+            return perplexityModels;
         } catch (error) {
-            console.error('Error generating completion:', error);
+            console.error('Error fetching models:', error);
             return error;
         }
     }
 }
+
+
+module.exports = Perplexity;
+
+
