@@ -18,24 +18,24 @@ class OpenAI {
 
     async createCompletion(options) {
         try {
-            console.log(options.messages);
+            console.log("calling open ai",this.apiEndpoint, options,options.model);
             const response = await axios.post(
                 this.apiEndpoint,
                 {
                     model: options.model, // Default model if not provided
-                    messages: options.messages, // Expecting an array of messages
+                    prompt: options.message, // Expecting an array of messages
                 },
                 {
                     headers: {
                         "Content-Type": "application/json",
-                        //  'Authorization': `Bearer ${this.apiKey}` // Use the API key from the instance variable
+                        "Authorization": `Bearer ${this.apiKey}`,
                     },
                 }
             );
 
             return response.data;
         } catch (error) {
-            console.error("Error generating completion:", error);
+            // console.error("Error generating completion:", error);
             return error;
         }
     }
