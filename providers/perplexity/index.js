@@ -17,7 +17,7 @@ class  Perplexity {
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                    //  'Authorization': `Bearer ${this.apiKey}` // Use the API key from the instance variable
+                     'Authorization': `Bearer ${this.apiKey}` // Use the API key from the instance variable
                 }
             });
 
