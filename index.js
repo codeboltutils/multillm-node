@@ -32,7 +32,7 @@ class Multillm {
         );
         break;
       case "lmstudio":
-        const Perplexity = require("./providers/lmstudio");
+        const LMStudio = require("./providers/lmstudio");
         return new LMStudio(
           this.model,
           this.device_map,
