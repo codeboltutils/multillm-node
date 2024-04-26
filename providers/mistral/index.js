@@ -24,7 +24,7 @@ class MistralAI {
                 {
                     model: options.model, // Default model if not provided
                     messages: options.messages, // Expecting an array of messages
-                },
+                  },
                 {
                     headers: {
                         "Content-Type": "application/json",

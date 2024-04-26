@@ -13,7 +13,7 @@ class OpenAI {
     this.apiEndpoint =
       apiEndpoint != null
         ? `${apiEndpoint}`
-        : "https://api.openai.com/v1/completions";
+        : "https://api.openai.com/v1/chat/completions";
   }
 
   async createCompletion(options) {
@@ -23,7 +23,7 @@ class OpenAI {
         this.apiEndpoint,
         {
           model: options.model, // Default model if not provided
-          prompt: options.prompt, // Expecting an array of messages
+          messages: options.messages, // Expecting an array of messages
         },
         {
           headers: {
