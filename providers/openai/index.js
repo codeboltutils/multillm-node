@@ -44,10 +44,14 @@ class OpenAI {
       const response = await axios.get("https://api.openai.com/v1/models", {
         headers: {
           "Content-Type": "application/json",
-         "Authorization": `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
         },
       });
-      return response.data;
+      let allModels = response.data.data.map((model) => {
+        model.provider = "OpenAI";
+        return model;
+      });
+      return allModels;
     } catch (error) {
       console.error("Error fetching models:", error);
       return error;
@@ -56,5 +60,3 @@ class OpenAI {
 }
 
 module.exports = OpenAI;
-
-
