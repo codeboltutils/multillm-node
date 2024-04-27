@@ -13,14 +13,14 @@ class LMStudio {
     this.apiEndpoint =
       apiEndpoint != null
         ? `${apiEndpoint}`
-        : "http://localhost:1234/v1/chat/completions";
+        : "http://localhost:1234/v1";
   }
 
   async createCompletion(options) {
     try {
       console.log(options.messages);
       const response = await axios.post(
-        this.apiEndpoint,
+        `${this.apiEndpoint}/chat/completions`,
         {
           model: options.model, // Default model if not provided
           messages: options.messages, // Expecting an array of messages
@@ -41,7 +41,7 @@ class LMStudio {
   }
   async getModels() {
     try {
-      const response = await axios.get("http://localhost:1234/v1/models", {
+      const response = await axios.get(`${this.apiEndpoint}/models`, {
         headers: {
           "Content-Type": "application/json",
         //"Authorization": `Bearer ${this.apiKey}`,

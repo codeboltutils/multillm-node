@@ -5,13 +5,13 @@ class  Perplexity {
         this.device_map = device_map;
         this.apiKey = apiKey; // Store the API key as an instance variable
         //TODO change the api endpoint    
-        this.apiEndpoint = apiEndpoint != null ? `${apiEndpoint}` : 'https://api.perplexity.ai/chat/completions';
+        this.apiEndpoint = apiEndpoint != null ? `${apiEndpoint}` : 'https://api.perplexity.ai';
     }
 
     async createCompletion(options) {
         try {
             console.log(options.messages);
-            const response = await axios.post(this.apiEndpoint, {
+            const response = await axios.post(`${this.apiEndpoint}/chat/completions`, {
                 model: options.model , // Default model if not provided
                 messages: options.messages, // Expecting an array of messages
             }, {

@@ -13,14 +13,14 @@ class OpenAI {
     this.apiEndpoint =
       apiEndpoint != null
         ? `${apiEndpoint}`
-        : "https://api.openai.com/v1/chat/completions";
+        : "https://api.openai.com/v1";
   }
 
   async createCompletion(options) {
     try {
       console.log(options.messages);
       const response = await axios.post(
-        this.apiEndpoint,
+       `${this.apiEndpoint}/chat/completions`,
         {
           model: options.model, // Default model if not provided
           messages: options.messages, // Expecting an array of messages
@@ -41,7 +41,7 @@ class OpenAI {
   }
   async getModels() {
     try {
-      const response = await axios.get("https://api.openai.com/v1/models", {
+      const response = await axios.get(`${this.apiEndpoint}/models`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
