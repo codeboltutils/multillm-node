@@ -57,6 +57,29 @@ class OpenAI {
       return error;
     }
   }
+
+  async createEmbedding(input,model) {
+    try {
+      const response = await axios.post(
+        `${this.apiEndpoint}/embeddings`,
+        {
+          input,
+          model
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            'Authorization': `Bearer ${this.apiKey}`
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Error creating embedding:", error);
+      return error;
+    }
+  }
 }
 
 module.exports = OpenAI;
