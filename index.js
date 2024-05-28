@@ -78,7 +78,7 @@ class Multillm {
         logo: "https://github.com/lmstudio-ai.png",
         name: "LM Studio",
         apiUrl: "http://localhost:1234/v1",
-        keyAdded:false
+        keyAdded:true
       },
       {
         id: 4,
