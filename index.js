@@ -68,7 +68,7 @@ class Multillm {
     return [
       {
         id: 1,
-        logo: "https://github.com/mistralai.png",
+        logo: "https://avatars.githubusercontent.com/u/166920414?s=200&v=4",
         name: "CodeBolt",
         apiUrl: "https://codeboltproxy.arrowai.workers.dev/v1",
         key: "",
@@ -82,7 +82,7 @@ class Multillm {
         key: "",
         keyAdded: false,
         apiUrl: "https://api.perplexity.com/v1",
-        category:'other'
+        category:'cloudProviders'
       },
       {
         id: 3,
@@ -91,7 +91,7 @@ class Multillm {
         apiUrl: "https://api.openai.com/v1",
         key: "",
         keyAdded: false,
-        category:'other'
+        category:'cloudProviders'
       },
       {
         id: 4,
@@ -99,7 +99,7 @@ class Multillm {
         name: "LM Studio",
         apiUrl: "http://localhost:1234/v1",
         keyAdded: false,
-        category:'other'
+        category:'localProviders'
       },
       {
         id: 5,
@@ -108,7 +108,7 @@ class Multillm {
         apiUrl: "https://api.mistral.ai/v1",
         key: "",
         keyAdded: false,
-        category:'other'
+        category:'cloudProviders'
       },
     ];
   }
