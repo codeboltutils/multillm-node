@@ -13,6 +13,15 @@ class Multillm {
     this.apiEndpoint = apiEndpoint;
 
     switch (this.provider) {
+
+      case "codebolt":
+        const OpenAI = require("./providers/codebolt");
+        return new OpenAI(
+          this.model,
+          this.device_map,
+          this.apiKey,
+          this.apiEndpoint
+        );
       case "openai":
         const OpenAI = require("./providers/openai");
         return new OpenAI(
@@ -59,6 +68,14 @@ class Multillm {
     return [
       {
         id: 1,
+        logo: "https://github.com/mistralai.png",
+        name: "CodeBolt",
+        apiUrl: "https://codeboltproxy.arrowai.workers.dev/v1",
+        key: "",
+        keyAdded: false,
+      },
+      {
+        id: 2,
         logo: "https://github.com/shadcn.png",
         name: "Perplexity",
         key: "",
@@ -66,7 +83,7 @@ class Multillm {
         apiUrl: "https://api.perplexity.com/v1",
       },
       {
-        id: 2,
+        id: 3,
         logo: "https://github.com/openai.png",
         name: "Open AI",
         apiUrl: "https://api.openai.com/v1",
@@ -74,14 +91,14 @@ class Multillm {
         keyAdded: false,
       },
       {
-        id: 3,
+        id: 4,
         logo: "https://github.com/lmstudio-ai.png",
         name: "LM Studio",
         apiUrl: "http://localhost:1234/v1",
-        keyAdded:false
+        keyAdded: false
       },
       {
-        id: 4,
+        id: 5,
         logo: "https://github.com/mistralai.png",
         name: "Mistral",
         apiUrl: "https://api.mistral.ai/v1",
@@ -93,3 +110,4 @@ class Multillm {
 }
 
 module.exports = Multillm;
+
