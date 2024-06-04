@@ -15,8 +15,8 @@ class Multillm {
     switch (this.provider) {
 
       case "codebolt":
-        const OpenAI = require("./providers/codebolt");
-        return new OpenAI(
+        const CodeBoltAI = require("./providers/codebolt");
+        return new CodeBoltAI(
           this.model,
           this.device_map,
           this.apiKey,
