@@ -73,6 +73,7 @@ class Multillm {
         apiUrl: "https://codeboltproxy.arrowai.workers.dev/v1",
         key: "",
         keyAdded: false,
+        category:'codebolt'
       },
       {
         id: 2,
@@ -81,6 +82,7 @@ class Multillm {
         key: "",
         keyAdded: false,
         apiUrl: "https://api.perplexity.com/v1",
+        category:'other'
       },
       {
         id: 3,
@@ -89,13 +91,15 @@ class Multillm {
         apiUrl: "https://api.openai.com/v1",
         key: "",
         keyAdded: false,
+        category:'other'
       },
       {
         id: 4,
         logo: "https://github.com/lmstudio-ai.png",
         name: "LM Studio",
         apiUrl: "http://localhost:1234/v1",
-        keyAdded: false
+        keyAdded: false,
+        category:'other'
       },
       {
         id: 5,
@@ -104,6 +108,7 @@ class Multillm {
         apiUrl: "https://api.mistral.ai/v1",
         key: "",
         keyAdded: false,
+        category:'other'
       },
     ];
   }
