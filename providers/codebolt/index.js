@@ -28,7 +28,7 @@ class OpenAI {
         {
           headers: {
             "Content-Type": "application/json",
-            'Authorization': `Bearer ${this.apiKey}` // Use the API key from the instance variable
+            'Authorization': `${this.apiKey}` // Use the API key from the instance variable
           },
         }
       );
@@ -44,11 +44,11 @@ class OpenAI {
       const response = await axios.get(`${this.apiEndpoint}/models`, {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
+          "x-codebolt-key": `${this.apiKey}`,
         },
       });
       let allModels = response.data.data.map((model) => {
-        model.provider = "OpenAI";
+        model.provider = "Codebot";
         return model;
       });
       return allModels;
@@ -69,7 +69,7 @@ class OpenAI {
         {
           headers: {
             "Content-Type": "application/json",
-            'Authorization': `Bearer ${this.apiKey}`
+            'x-codebolt-key': `${this.apiKey}`
           },
         }
       );
