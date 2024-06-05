@@ -28,7 +28,7 @@ class OpenAI {
         {
           headers: {
             "Content-Type": "application/json",
-            'Authorization': `${this.apiKey}` // Use the API key from the instance variable
+            'x-codebolt-key': `${this.apiKey}` // Use the API key from the instance variable
           },
         }
       );
