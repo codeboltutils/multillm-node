@@ -13,7 +13,7 @@ class OpenAI {
     this.apiEndpoint =
       apiEndpoint != null
         ? `${apiEndpoint}`
-        : "https://api.openai.com/v1";
+        : "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/openai";
   }
 
   async createCompletion(options) {

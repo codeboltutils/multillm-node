@@ -69,7 +69,7 @@ class Multillm {
       {
         id: 1,
         logo: "https://avatars.githubusercontent.com/u/166920414?s=200&v=4",
-        name: "CodeBolt",
+        name: "CodeBolt AI",
         apiUrl: "https://codeboltproxy.arrowai.workers.dev/v1",
         key: "",
         keyAdded: false,
@@ -81,14 +81,14 @@ class Multillm {
         name: "Perplexity",
         key: "",
         keyAdded: false,
-        apiUrl: "https://api.perplexity.com/v1",
+        apiUrl: "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/perplexity-ai",
         category:'cloudProviders'
       },
       {
         id: 3,
         logo: "https://github.com/openai.png",
         name: "Open AI",
-        apiUrl: "https://api.openai.com/v1",
+        apiUrl: "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/openai",
         key: "",
         keyAdded: false,
         category:'cloudProviders'

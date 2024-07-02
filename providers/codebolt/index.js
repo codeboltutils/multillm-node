@@ -48,7 +48,7 @@ class OpenAI {
         },
       });
       let allModels = response.data.data.map((model) => {
-        model.provider = "Codebot";
+        model.provider = "Codebolt";
         return model;
       });
       return allModels;

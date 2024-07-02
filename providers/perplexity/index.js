@@ -5,7 +5,7 @@ class  Perplexity {
         this.device_map = device_map;
         this.apiKey = apiKey; // Store the API key as an instance variable
         //TODO change the api endpoint    
-        this.apiEndpoint = apiEndpoint != null ? `${apiEndpoint}` : 'https://api.perplexity.ai';
+        this.apiEndpoint = apiEndpoint != null ? `${apiEndpoint}` : 'https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/perplexity-ai';
     }
 
     async createCompletion(options) {
