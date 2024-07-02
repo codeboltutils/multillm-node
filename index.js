@@ -14,7 +14,7 @@ class Multillm {
 
     switch (this.provider) {
 
-      case "codebolt":
+      case "Codebolt AI":
         const CodeBoltAI = require("./providers/codebolt");
         return new CodeBoltAI(
           this.model,
