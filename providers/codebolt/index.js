@@ -20,9 +20,9 @@ class OpenAI {
     try {
       console.log(options.messages);
       const response = await axios.post(
-       `${this.apiEndpoint}/chat/completions`,
+        `${this.apiEndpoint}/chat/completions`,
         {
-          model: options.model, // Default model if not provided
+          model: options.model || "default-model", // Default model if not provided
           messages: options.messages, // Expecting an array of messages
         },
         {
@@ -32,13 +32,39 @@ class OpenAI {
           },
         }
       );
-
+  
       return response.data;
     } catch (error) {
-      console.error("Error generating completion:", error);
-      return error;
+      // Handle different types of errors
+      if (error.response) {
+        // Server responded with a status other than 2xx
+        console.error("Error response from server:", error.response.data);
+        return {
+          success: false,
+          message: "Error response from server",
+          data: error.response.data,
+          status: error.response.status
+        };
+      } else if (error.request) {
+        // Request was made but no response received
+        console.error("No response received:", error.request);
+        return {
+          success: false,
+          message: "No response received from server",
+          data: error.request
+        };
+      } else {
+        // Something else happened while setting up the request
+        console.error("Error setting up request:", error.message);
+        return {
+          success: false,
+          message: "Error setting up request",
+          error: error.message
+        };
+      }
     }
   }
+  
   async getModels() {
     try {
       const response = await axios.get(`${this.apiEndpoint}/models`, {
@@ -53,8 +79,33 @@ class OpenAI {
       });
       return allModels;
     } catch (error) {
-      console.error("Error fetching models:", error);
-      return error;
+      // Handle different types of errors
+      if (error.response) {
+        // Server responded with a status other than 2xx
+        console.error("Error response from server:", error.response.data);
+        return {
+          success: false,
+          message: "Error response from server",
+          data: error.response.data,
+          status: error.response.status
+        };
+      } else if (error.request) {
+        // Request was made but no response received
+        console.error("No response received:", error.request);
+        return {
+          success: false,
+          message: "No response received from server",
+          data: error.request
+        };
+      } else {
+        // Something else happened while setting up the request
+        console.error("Error setting up request:", error.message);
+        return {
+          success: false,
+          message: "Error setting up request",
+          error: error.message
+        };
+      }
     }
   }
 
@@ -76,8 +127,33 @@ class OpenAI {
 
       return response.data;
     } catch (error) {
-      console.error("Error creating embedding:", error);
-      return error;
+      // Handle different types of errors
+      if (error.response) {
+        // Server responded with a status other than 2xx
+        console.error("Error response from server:", error.response.data);
+        return {
+          success: false,
+          message: "Error response from server",
+          data: error.response.data,
+          status: error.response.status
+        };
+      } else if (error.request) {
+        // Request was made but no response received
+        console.error("No response received:", error.request);
+        return {
+          success: false,
+          message: "No response received from server",
+          data: error.request
+        };
+      } else {
+        // Something else happened while setting up the request
+        console.error("Error setting up request:", error.message);
+        return {
+          success: false,
+          message: "Error setting up request",
+          error: error.message
+        };
+      }
     }
   }
 }
