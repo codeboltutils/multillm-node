@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { handleError } = require("../../utils/errorHandler");
 
 class OpenAI {
   constructor(
@@ -35,8 +36,8 @@ class OpenAI {
 
       return response.data;
     } catch (error) {
-      console.error("Error generating completion:", error);
-      return error;
+      
+      return handleError(error);
     }
   }
   async getModels() {
@@ -53,8 +54,7 @@ class OpenAI {
       });
       return allModels;
     } catch (error) {
-      console.error("Error fetching models:", error);
-      return error;
+      return handleError(error);
     }
   }
 
@@ -76,8 +76,7 @@ class OpenAI {
 
       return response.data;
     } catch (error) {
-      console.error("Error creating embedding:", error);
-      return error;
+      return handleError(error);
     }
   }
 }

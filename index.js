@@ -75,15 +75,15 @@ class Multillm {
         keyAdded: false,
         category:'codebolt'
       },
-      {
-        id: 2,
-        logo: "https://github.com/shadcn.png",
-        name: "Perplexity",
-        key: "",
-        keyAdded: false,
-        apiUrl: "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/perplexity-ai",
-        category:'cloudProviders'
-      },
+      // {
+      //   id: 2,
+      //   logo: "https://github.com/shadcn.png",
+      //   name: "Perplexity",
+      //   key: "",
+      //   keyAdded: false,
+      //   apiUrl: "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/perplexity-ai",
+      //   category:'cloudProviders'
+      // },
       {
         id: 3,
         logo: "https://github.com/openai.png",
@@ -101,15 +101,15 @@ class Multillm {
         keyAdded: false,
         category:'localProviders'
       },
-      {
-        id: 5,
-        logo: "https://github.com/mistralai.png",
-        name: "Mistral",
-        apiUrl: "https://api.mistral.ai/v1",
-        key: "",
-        keyAdded: false,
-        category:'cloudProviders'
-      },
+      // {
+      //   id: 5,
+      //   logo: "https://github.com/mistralai.png",
+      //   name: "Mistral",
+      //   apiUrl: "https://api.mistral.ai/v1",
+      //   key: "",
+      //   keyAdded: false,
+      //   category:'cloudProviders'
+      // },
     ];
   }
 }
