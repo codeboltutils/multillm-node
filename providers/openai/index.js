@@ -22,10 +22,7 @@ class OpenAI {
       console.log(options.messages);
       const response = await axios.post(
        `${this.apiEndpoint}/chat/completions`,
-        {
-          model: options.model, // Default model if not provided
-          messages: options.messages, // Expecting an array of messages
-        },
+        options,
         {
           headers: {
             "Content-Type": "application/json",
@@ -81,4 +78,11 @@ class OpenAI {
   }
 }
 
+
+
+
 module.exports = OpenAI;
+
+
+
+

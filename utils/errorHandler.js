@@ -1,7 +1,7 @@
 const handleError = (error) => {
     if (error.response) {
         // Server responded with a status other than 2xx
-        console.error("Error response from server:", error.response.data);
+        // console.error("Error response from server:", error.response.data);
         return {
             success: false,
             message: "Error response from server",

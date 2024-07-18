@@ -1,5 +1,7 @@
 const axios = require("axios");
-const { handleError } = require("../../utils/errorHandler");
+const {
+  handleError
+} = require("../../utils/errorHandler");
 
 class OpenAI {
   constructor(
@@ -12,9 +14,9 @@ class OpenAI {
     this.device_map = device_map;
     this.apiKey = apiKey; // Store the API key as an instance variable
     this.apiEndpoint =
-      apiEndpoint != null
-        ? `${apiEndpoint}`
-        : "https://codeboltproxy.arrowai.workers.dev/v1";
+      apiEndpoint != null ?
+      `${apiEndpoint}` :
+      "https://codeboltproxy.arrowai.workers.dev/v1";
   }
 
   async createCompletion(options) {
@@ -22,25 +24,21 @@ class OpenAI {
       console.log(options.messages);
       const response = await axios.post(
         `${this.apiEndpoint}/chat/completions`,
-        {
-          model: options.model || "default-model", // Default model if not provided
-          messages: options.messages, // Expecting an array of messages
-        },
-        {
+        options, {
           headers: {
             "Content-Type": "application/json",
             'x-codebolt-key': `${this.apiKey}` // Use the API key from the instance variable
           },
         }
       );
-  
+
       return response.data;
     } catch (error) {
       // Handle different types of errors
       return handleError(error)
     }
   }
-  
+
   async getModels() {
     try {
       const response = await axios.get(`${this.apiEndpoint}/models`, {
@@ -59,15 +57,13 @@ class OpenAI {
     }
   }
 
-  async createEmbedding(input,model) {
+  async createEmbedding(input, model) {
     try {
       const response = await axios.post(
-        `${this.apiEndpoint}/embeddings`,
-        {
+        `${this.apiEndpoint}/embeddings`, {
           input,
           model
-        },
-        {
+        }, {
           headers: {
             "Content-Type": "application/json",
             'x-codebolt-key': `${this.apiKey}`
@@ -77,9 +73,13 @@ class OpenAI {
 
       return response.data;
     } catch (error) {
-     return handleError(error)
+      return handleError(error)
     }
   }
+
+
 }
 
 module.exports = OpenAI;
+
+// End of the Selection
