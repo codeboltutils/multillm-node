@@ -45,8 +45,7 @@ class OpenAI {
       const response = await axios.get(`${this.apiEndpoint}/models`, {
         headers: {
           "Content-Type": "application/json",
-          "x-codebolt-key": `${this.apiKey}`,
-          'x-codebolt-provider':provider,
+          "x-codebolt-key": `${this.apiKey}`
         },
       });
       let allModels = response.data.data.map((model) => {
