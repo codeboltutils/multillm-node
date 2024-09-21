@@ -31,6 +31,15 @@ class Multillm {
           this.apiEndpoint
         );
         break;
+        case "anthropic":
+          const Anthropic = require("./providers/anthropic");
+          return new Anthropic(
+            this.model,
+            this.device_map,
+            this.apiKey,
+            this.apiEndpoint
+          );
+          break;  
       case "perplexity":
         const Perplexity = require("./providers/perplexity");
         return new Perplexity(
