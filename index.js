@@ -110,6 +110,14 @@ class Multillm {
         keyAdded: false,
         category:'localProviders'
       },
+      {
+        id: 5,
+        logo: "https://github.com/lmstudio-ai.png",
+        name: "Anthropic",
+        apiUrl: "https://api.anthropic.com",
+        keyAdded: false,
+        category:'cloudProviders'
+      },
       // {
       //   id: 5,
       //   logo: "https://github.com/mistralai.png",
