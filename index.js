@@ -112,7 +112,7 @@ class Multillm {
       },
       {
         id: 5,
-        logo: "https://github.com/lmstudio-ai.png",
+        logo: "https://github.com/anthropics.png",
         name: "Anthropic",
         apiUrl: "https://api.anthropic.com",
         keyAdded: false,
