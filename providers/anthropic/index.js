@@ -41,7 +41,7 @@ class AnthropicHandler {
         apiEndpoint = null) {
         this.options =  this.options =  {model,device_map,apiKey,apiEndpoint};;
         this.client = new Anthropic({
-            baseURL: apiEndpoint,
+            baseURL: apiEndpoint || "https://api.anthropic.com",
             apiKey: apiKey,
         });
     }
