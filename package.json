@@ -5,7 +5,7 @@
     "openai": "^4.63.0"
   },
   "name": "@arrowai/multillm",
-  "version": "1.1.36",
+  "version": "1.1.37",
   "main": "index.js",
   "scripts": {},
   "keywords": [],

@@ -1,5 +1,40 @@
 const { Anthropic } = require("@anthropic-ai/sdk");
- class AnthropicHandler {
+  const anthropicDefaultModelId = "claude-3-5-sonnet-20240620"
+ const anthropicModels = {
+	"claude-3-5-sonnet-20240620": {
+		maxTokens: 8192,
+		contextWindow: 200_000,
+		supportsImages: true,
+		supportsPromptCache: true,
+		inputPrice: 3.0, // $3 per million input tokens
+		outputPrice: 15.0, // $15 per million output tokens
+		cacheWritesPrice: 3.75, // $3.75 per million tokens
+		cacheReadsPrice: 0.3, // $0.30 per million tokens
+	},
+	"claude-3-opus-20240229": {
+		maxTokens: 4096,
+		contextWindow: 200_000,
+		supportsImages: true,
+		supportsPromptCache: true,
+		inputPrice: 15.0,
+		outputPrice: 75.0,
+		cacheWritesPrice: 18.75,
+		cacheReadsPrice: 1.5,
+	},
+	"claude-3-haiku-20240307": {
+		maxTokens: 4096,
+		contextWindow: 200_000,
+		supportsImages: true,
+		supportsPromptCache: true,
+		inputPrice: 0.25,
+		outputPrice: 1.25,
+		cacheWritesPrice: 0.3,
+		cacheReadsPrice: 0.03,
+	},
+} ;// as const assertion makes the object deeply readonly
+
+
+class AnthropicHandler {
     constructor(model = null,
         device_map = null,
         apiKey = null,
@@ -24,7 +59,7 @@ const { Anthropic } = require("@anthropic-ai/sdk");
                 const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1;
                 const message = await this.client.beta.promptCaching.messages.create({
                     model: modelId,
-                    max_tokens: this.getModel().info.maxTokens,
+                    max_tokens: this.getModel(modelId).info.maxTokens,
                     system: [{ text: systemPrompt, type: "text", cache_control: { type: "ephemeral" } }],
                     messages: messages.map((message, index) => {
                         if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
@@ -74,6 +109,14 @@ const { Anthropic } = require("@anthropic-ai/sdk");
             }
         }
     }
+    getModel(modelId){
+		
+		if (modelId && modelId in anthropicModels) {
+			const id = modelId ;
+			return { id, info: anthropicModels[id] }
+		}
+		return { id: anthropicDefaultModelId, info: anthropicModels[anthropicDefaultModelId] }
+	}
     async getModels() {
         return [
             {
