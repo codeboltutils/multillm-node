@@ -1,3 +1,24 @@
+// const {Anthropic} = require('@anthropic-ai/sdk');
+
+// const anthropic = new Anthropic({
+//   apiKey: '', // defaults to process.env["ANTHROPIC_API_KEY"]
+// });
+
+
+
+
+// async function main(){
+//     const msg = await anthropic.messages.create({
+//         model: "claude-3-5-sonnet-20240620",
+//         max_tokens: 1024,
+//         messages: [{ role: "user", content: "Hello, Claude" }],
+//       });
+//       console.log(msg);
+// }
+// main();
+
+
+
 const  Anthropic  = require("@anthropic-ai/sdk");
   const anthropicDefaultModelId = "claude-3-5-sonnet-20240620"
  const anthropicModels = {
@@ -167,4 +188,5 @@ class AnthropicHandler {
 }
 
 module.exports=AnthropicHandler
+
 
