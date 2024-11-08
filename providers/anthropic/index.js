@@ -49,8 +49,9 @@ class AnthropicHandler {
         createParams
 	) {
 
-        let {messages,system:systemPrompt,tools,model}=createParams
-        console.log(createParams)
+        let {messages,system:systemPrompt,tools,model}=createParams;
+        console.log("message is")
+        console.log(JSON.stringify(createParams))
         const modelId = model;
         try {
             switch (modelId) {
@@ -71,7 +72,7 @@ class AnthropicHandler {
                             model: modelId,
                             max_tokens: this.getModel().info.maxTokens,
                             temperature: 0.2,
-                            system: [{ text: systemPrompt, type: "text", cache_control: { type: "ephemeral" } }], // setting cache breakpoint for system prompt so new tasks can reuse it
+                            system: [{ text: systemPrompt[0].text, type: "text", cache_control: { type: "ephemeral" } }], // setting cache breakpoint for system prompt so new tasks can reuse it
                             messages: messages.map((message, index) => {
                                 if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
                                     return {
@@ -94,7 +95,7 @@ class AnthropicHandler {
                                 }
                                 return message
                             }),
-                            tools, // cache breakpoints go from tools > system > messages, and since tools dont change, we can just set the breakpoint at the end of system (this avoids having to set a breakpoint at the end of tools which by itself does not meet min requirements for haiku caching)
+                            tools:tools ||[], // cache breakpoints go from tools > system > messages, and since tools dont change, we can just set the breakpoint at the end of system (this avoids having to set a breakpoint at the end of tools which by itself does not meet min requirements for haiku caching)
                             tool_choice: { type: "auto" },
                         },
                         (() => {
@@ -124,9 +125,9 @@ class AnthropicHandler {
                         model: modelId,
                         max_tokens: this.getModel().info.maxTokens,
                         temperature: 0.2,
-                        system: [{ text: systemPrompt, type: "text" }],
+                        system: [{ text: systemPrompt[0].text, type: "text" }],
                         messages,
-                        tools,
+                        tools:tools ||[], 
                         tool_choice: { type: "auto" },
                     })
                     return { message }
