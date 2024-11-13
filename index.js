@@ -1,4 +1,4 @@
-const { Embeddings } = require("openai/resources/embeddings.mjs");
+
 
 class Multillm {
   constructor(
