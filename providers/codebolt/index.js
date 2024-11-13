@@ -56,7 +56,7 @@ class OpenAI {
         if (this.embeddingModels.includes(model.id)) {
           model.type = "embedding";
         }
-        return { model };
+        return  model ;
       });
       return allModels;
     } catch (error) {
