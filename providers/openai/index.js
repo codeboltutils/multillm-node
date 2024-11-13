@@ -8,14 +8,13 @@ const { AzureOpenAI } = require("openai");
 class OpenAI {
   options;
   client;
+  embeddingModels;
   constructor(model = null,
     device_map = null,
     apiKey = null,
     apiEndpoint = null) {
-    //     model = null,
-    //     device_map = null,
-    //     apiKey = null,
-    //     apiEndpoint = null
+    this.embeddingModels = ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]
+
     this.model = model;
     this.device_map = device_map;
     this.apiKey = apiKey; // Store the API key as an instance variable
@@ -25,8 +24,8 @@ class OpenAI {
         : "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/openai";
     this.options = { model, device_map, apiKey, apiEndpoint }; // Ensure options is defined
     // Azure API shape slightly differs from the core API shape: https://github.com/openai/openai-node?tab=readme-ov-file#microsoft-azure-openai
-    this.options.apiEndpoint= this.apiEndpoint;
-        if (this.options.apiEndpoint && this.options.apiEndpoint.toLowerCase().includes("azure.com")) {
+    this.options.apiEndpoint = this.apiEndpoint;
+    if (this.options.apiEndpoint && this.options.apiEndpoint.toLowerCase().includes("azure.com")) {
       this.client = new AzureOpenAI({
         baseURL: apiEndpoint,
         apiKey: apiKey,
@@ -62,8 +61,12 @@ class OpenAI {
           Authorization: `Bearer ${this.apiKey}`,
         },
       });
+
       let allModels = response.data.data.map((model) => {
         model.provider = "OpenAI";
+        if (this.embeddingModels.includes(model.id)) {
+          model.type = "embedding";
+        }
         return model;
       });
       return allModels;

@@ -1,15 +1,16 @@
 const axios = require("axios");
 
 class LMStudio {
+  embeddingModels;
   constructor(
     model = null,
     device_map = null,
-   
+
     apiEndpoint = null
   ) {
     this.model = model;
     this.device_map = device_map;
-  
+    this.embeddingModels = []
     this.apiEndpoint =
       apiEndpoint != null
         ? `${apiEndpoint}`
@@ -44,7 +45,7 @@ class LMStudio {
       const response = await axios.get(`${this.apiEndpoint}/models`, {
         headers: {
           "Content-Type": "application/json",
-        //"Authorization": `Bearer ${this.apiKey}`,
+          //"Authorization": `Bearer ${this.apiKey}`,
         },
       });
       let allModels = response.data.data.map((model) => {

@@ -1,3 +1,5 @@
+const { Embeddings } = require("openai/resources/embeddings.mjs");
+
 class Multillm {
   constructor(
     provider,
@@ -31,7 +33,7 @@ class Multillm {
           this.apiEndpoint
         );
         break;
-        case "anthropic":
+      case "anthropic":
           const Anthropic = require("./providers/anthropic");
           return new Anthropic(
             this.model,
@@ -54,7 +56,6 @@ class Multillm {
         return new LMStudio(
           this.model,
           this.device_map,
-
           this.apiEndpoint
         );
         break;
@@ -108,7 +109,7 @@ class Multillm {
         name: "LM Studio",
         apiUrl: "http://localhost:1234/v1",
         keyAdded: false,
-        category:'localProviders'
+        category:'localProviders',
       },
       {
         id: 5,
@@ -116,7 +117,7 @@ class Multillm {
         name: "Anthropic",
         apiUrl: "https://api.anthropic.com",
         keyAdded: false,
-        category:'cloudProviders'
+        category:'cloudProviders',
       },
       // {
       //   id: 5,

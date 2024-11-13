@@ -4,6 +4,7 @@ const {
 } = require("../../utils/errorHandler");
 
 class OpenAI {
+  embeddingModels
   constructor(
     model = null,
     device_map = null,
@@ -17,7 +18,10 @@ class OpenAI {
       apiEndpoint != null ?
       `${apiEndpoint}` :
       "https://codeboltproxy.arrowai.workers.dev/v1";
+
+      this.embeddingModels = ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]
   }
+
 
   async createCompletion(options) {
     try {
@@ -49,7 +53,10 @@ class OpenAI {
       });
       let allModels = response.data.data.map((model) => {
         model.provider = "Codebolt";
-        return model;
+        if (this.embeddingModels.includes(model.id)) {
+          model.type = "embedding";
+        }
+        return { model };
       });
       return allModels;
     } catch (error) {
