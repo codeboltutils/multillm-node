@@ -9,12 +9,13 @@ class OpenAI {
   options;
   client;
   embeddingModels;
+  chatModels;
   constructor(model = null,
     device_map = null,
     apiKey = null,
     apiEndpoint = null) {
     this.embeddingModels = ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]
-
+    this.chatModels = ["gpt-4o-mini", "gpt-4o"]
     this.model = model;
     this.device_map = device_map;
     this.apiKey = apiKey; // Store the API key as an instance variable
@@ -66,6 +67,9 @@ class OpenAI {
         model.provider = "OpenAI";
         if (this.embeddingModels.includes(model.id)) {
           model.type = "embedding";
+        }
+        if (this.chatModels.includes(model.id)) {
+          model.type = "chat";
         }
         return model;
       });
