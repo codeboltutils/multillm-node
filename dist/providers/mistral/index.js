@@ -9,7 +9,7 @@ class MistralAI {
         this.model = model;
         this.device_map = device_map;
         this.apiKey = apiKey;
-        this.apiEndpoint = apiEndpoint !== null && apiEndpoint !== void 0 ? apiEndpoint : "https://api.mistral.ai/v1";
+        this.apiEndpoint = apiEndpoint ?? "https://api.mistral.ai/v1";
     }
     async createCompletion(options) {
         try {

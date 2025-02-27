@@ -1,6 +1,7 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { handleError } from '../../utils/errorHandler';
 import type { BaseProvider } from '../../types';
+import axios from 'axios';
 
 interface BedrockOptions extends BaseProvider {
   model: string | null;
@@ -41,18 +42,19 @@ class Bedrock implements BaseProvider {
     this.model = model || "anthropic.claude-v2";
     this.device_map = device_map;
     this.apiKey = apiKey;
-    this.apiEndpoint = apiEndpoint;
+    this.apiEndpoint = apiEndpoint || "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/aws/bedrock-runtime";
     
     this.options = { 
       model: this.model,
       device_map,
       apiKey,
-      apiEndpoint,
+      apiEndpoint: this.apiEndpoint,
       region,
       accessKeyId,
       secretAccessKey
     };
 
+    // Initialize AWS client for fallback
     this.client = new BedrockRuntimeClient({
       region: region,
       credentials: {
@@ -107,31 +109,65 @@ class Bedrock implements BaseProvider {
         };
       }
 
-      const command = new InvokeModelCommand({
-        modelId: this.model || 'anthropic.claude-v2',
-        body: JSON.stringify(body)
-      });
-
-      const response = await this.client.send(command);
-      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-
-      let content = '';
-      if (this.model?.startsWith('anthropic.')) {
-        content = responseBody.completion;
-      } else if (this.model?.startsWith('meta.')) {
-        content = responseBody.generation;
-      } else {
-        content = responseBody.results[0].outputText;
-      }
-
-      return {
-        choices: [{
-          message: {
-            role: 'assistant',
-            content: content
+      try {
+        // Try using Cloudflare Gateway first
+        const response = await axios.post(
+          `${this.apiEndpoint}/model/${this.model}`,
+          body,
+          {
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json'
+            }
           }
-        }]
-      };
+        );
+
+        let content = '';
+        if (this.model?.startsWith('anthropic.')) {
+          content = response.data.completion;
+        } else if (this.model?.startsWith('meta.')) {
+          content = response.data.generation;
+        } else {
+          content = response.data.results[0].outputText;
+        }
+
+        return {
+          choices: [{
+            message: {
+              role: 'assistant',
+              content: content
+            }
+          }]
+        };
+      } catch (error) {
+        // Fallback to direct AWS Bedrock if Cloudflare fails
+        console.warn('Cloudflare Gateway failed, falling back to direct AWS Bedrock:', error);
+        const command = new InvokeModelCommand({
+          modelId: this.model || 'anthropic.claude-v2',
+          body: JSON.stringify(body)
+        });
+
+        const response = await this.client.send(command);
+        const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+
+        let content = '';
+        if (this.model?.startsWith('anthropic.')) {
+          content = responseBody.completion;
+        } else if (this.model?.startsWith('meta.')) {
+          content = responseBody.generation;
+        } else {
+          content = responseBody.results[0].outputText;
+        }
+
+        return {
+          choices: [{
+            message: {
+              role: 'assistant',
+              content: content
+            }
+          }]
+        };
+      }
     } catch (error) {
       return handleError(error);
     }

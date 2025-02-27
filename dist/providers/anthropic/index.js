@@ -7,7 +7,7 @@ const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
 const anthropicDefaultModelId = "claude-3-5-sonnet-20240620";
 const anthropicModels = {
     "claude-3-5-sonnet-20240620": {
-        maxTokens: 8192,
+        maxTokens: 4096,
         contextWindow: 200000,
         supportsImages: true,
         supportsPromptCache: true,
@@ -46,15 +46,13 @@ class AnthropicHandler {
         this.apiEndpoint = apiEndpoint;
         this.options = { model, device_map, apiKey, apiEndpoint };
         this.client = new sdk_1.default({
-            baseURL: apiEndpoint || "https://api.anthropic.com",
-            apiKey: apiKey !== null && apiKey !== void 0 ? apiKey : undefined,
+            baseURL: apiEndpoint || "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/anthropic",
+            apiKey: apiKey ?? undefined,
         });
     }
     async createCompletion(createParams) {
-        var _a, _b;
         const { messages, system: systemPrompt, tools, model } = createParams;
-        console.log("message is");
-        console.log(JSON.stringify(createParams));
+        console.log("message is" + JSON.stringify(createParams));
         const modelId = model;
         try {
             switch (modelId) {
@@ -62,9 +60,9 @@ class AnthropicHandler {
                 case "claude-3-opus-20240229":
                 case "claude-3-haiku-20240307": {
                     const userMsgIndices = messages.reduce((acc, msg, index) => (msg.role === "user" ? [...acc, index] : acc), []);
-                    const lastUserMsgIndex = (_a = userMsgIndices[userMsgIndices.length - 1]) !== null && _a !== void 0 ? _a : -1;
-                    const secondLastMsgUserIndex = (_b = userMsgIndices[userMsgIndices.length - 2]) !== null && _b !== void 0 ? _b : -1;
-                    const message = await this.client.beta.promptCaching.messages.create({
+                    const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1;
+                    const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1;
+                    const requestParams = {
                         model: modelId,
                         max_tokens: this.getModel().info.maxTokens,
                         temperature: 0.2,
@@ -87,10 +85,14 @@ class AnthropicHandler {
                                 };
                             }
                             return message;
-                        }),
-                        tools: tools || [],
-                        tool_choice: { type: "auto" },
-                    }, (() => {
+                        })
+                    };
+                    // Only add tools and tool_choice if tools are provided
+                    if (tools && tools.length > 0) {
+                        requestParams.tools = tools;
+                        requestParams.tool_choice = { type: "auto" };
+                    }
+                    const message = await this.client.beta.promptCaching.messages.create(requestParams, (() => {
                         switch (modelId) {
                             case "claude-3-5-sonnet-20240620":
                                 return {
@@ -109,7 +111,7 @@ class AnthropicHandler {
                     return { message };
                 }
                 default: {
-                    const message = await this.client.messages.create({
+                    const requestParams = {
                         model: modelId,
                         max_tokens: this.getModel().info.maxTokens,
                         temperature: 0.2,
@@ -117,10 +119,14 @@ class AnthropicHandler {
                         messages: messages.map(msg => ({
                             ...msg,
                             content: typeof msg.content === "string" ? [{ type: "text", text: msg.content }] : msg.content
-                        })),
-                        tools: tools || [],
-                        tool_choice: { type: "auto" },
-                    });
+                        }))
+                    };
+                    // Only add tools and tool_choice if tools are provided
+                    if (tools && tools.length > 0) {
+                        requestParams.tools = tools;
+                        requestParams.tool_choice = { type: "auto" };
+                    }
+                    const message = await this.client.messages.create(requestParams);
                     return { message };
                 }
             }

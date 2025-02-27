@@ -7,7 +7,7 @@ export interface Provider {
     keyAdded: boolean;
     category: 'codebolt' | 'cloudProviders' | 'localProviders';
 }
-export type SupportedProvider = "codeboltai" | "openai" | "anthropic" | "perplexity" | "lmstudio" | "mistral";
+export type SupportedProvider = "codeboltai" | "openai" | "anthropic" | "perplexity" | "lmstudio" | "mistral" | "gemini" | "grok" | "ollama" | "bedrock" | "huggingface" | "github" | "groq" | "replicate" | "cloudflare";
 export interface BaseProvider {
     model: string | null;
     device_map: string | null;

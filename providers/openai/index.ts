@@ -45,7 +45,7 @@ class OpenAI implements BaseProvider {
       });
     } else {
       this.client = new OpenAIApi({
-        baseURL: apiEndpoint,
+        baseURL: this.apiEndpoint,
         apiKey: apiKey ?? undefined,
       });
     }

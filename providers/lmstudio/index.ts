@@ -56,7 +56,7 @@ class LMStudio implements BaseProvider {
 
   async createCompletion(options: CompletionOptions): Promise<CompletionResponse | Error> {
     try {
-      console.log(options.messages);
+      console.log("The options are:"+JSON.stringify(options));
       const response = await axios.post<CompletionResponse>(
         `${this.apiEndpoint}/chat/completions`,
         {

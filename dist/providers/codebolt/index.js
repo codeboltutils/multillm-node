@@ -10,7 +10,7 @@ class CodeBoltAI {
         this.model = model;
         this.device_map = device_map;
         this.apiKey = apiKey;
-        this.apiEndpoint = apiEndpoint !== null && apiEndpoint !== void 0 ? apiEndpoint : "https://codeboltproxy.arrowai.workers.dev/v1";
+        this.apiEndpoint = apiEndpoint ?? "https://codeboltproxy.arrowai.workers.dev/v1";
         this.embeddingModels = ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"];
     }
     async createCompletion(options) {

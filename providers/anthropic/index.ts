@@ -29,7 +29,7 @@ const anthropicDefaultModelId = "claude-3-5-sonnet-20240620";
 
 const anthropicModels: AnthropicModels = {
   "claude-3-5-sonnet-20240620": {
-    maxTokens: 8192,
+    maxTokens: 4096,
     contextWindow: 200_000,
     supportsImages: true,
     supportsPromptCache: true,
@@ -87,15 +87,14 @@ class AnthropicHandler implements BaseProvider {
     this.apiEndpoint = apiEndpoint;
     this.options = { model, device_map, apiKey, apiEndpoint };
     this.client = new Anthropic({
-      baseURL: apiEndpoint || "https://api.anthropic.com",
+      baseURL: apiEndpoint || "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/anthropic",
       apiKey: apiKey ?? undefined,
     });
   }
 
   async createCompletion(createParams: AnthropicCreateParams): Promise<{ message: Message | PromptCachingBetaMessage } | Error> {
     const { messages, system: systemPrompt, tools, model } = createParams;
-    console.log("message is");
-    console.log(JSON.stringify(createParams));
+    console.log("message is"+JSON.stringify(createParams));
     const modelId = model;
 
     try {
@@ -110,37 +109,43 @@ class AnthropicHandler implements BaseProvider {
           const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1;
           const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1;
 
+          const requestParams: any = {
+            model: modelId,
+            max_tokens: this.getModel().info.maxTokens,
+            temperature: 0.2,
+            system: [{ text: systemPrompt[0].text, type: "text" as const, cache_control: { type: "ephemeral" as const } }],
+            messages: messages.map((message, index) => {
+              if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
+                return {
+                  ...message,
+                  content:
+                    typeof message.content === "string"
+                      ? [
+                          {
+                            type: "text" as const,
+                            text: message.content,
+                            cache_control: { type: "ephemeral" as const },
+                          },
+                        ]
+                      : (message.content as Array<{ type: string; text: string }>).map((content, contentIndex: number) =>
+                          contentIndex === message.content.length - 1
+                            ? { ...content, cache_control: { type: "ephemeral" as const } }
+                            : content
+                        ),
+                } as PromptCachingBetaMessageParam;
+              }
+              return message as PromptCachingBetaMessageParam;
+            })
+          };
+
+          // Only add tools and tool_choice if tools are provided
+          if (tools && tools.length > 0) {
+            requestParams.tools = tools;
+            requestParams.tool_choice = { type: "auto" as const };
+          }
+
           const message = await this.client.beta.promptCaching.messages.create(
-            {
-              model: modelId,
-              max_tokens: this.getModel().info.maxTokens,
-              temperature: 0.2,
-              system: [{ text: systemPrompt[0].text, type: "text" as const, cache_control: { type: "ephemeral" as const } }],
-              messages: messages.map((message, index) => {
-                if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
-                  return {
-                    ...message,
-                    content:
-                      typeof message.content === "string"
-                        ? [
-                            {
-                              type: "text" as const,
-                              text: message.content,
-                              cache_control: { type: "ephemeral" as const },
-                            },
-                          ]
-                        : (message.content as Array<{ type: string; text: string }>).map((content, contentIndex: number) =>
-                            contentIndex === message.content.length - 1
-                              ? { ...content, cache_control: { type: "ephemeral" as const } }
-                              : content
-                          ),
-                  } as PromptCachingBetaMessageParam;
-                }
-                return message as PromptCachingBetaMessageParam;
-              }),
-              tools: tools || [],
-              tool_choice: { type: "auto" as const },
-            },
+            requestParams,
             (() => {
               switch (modelId) {
                 case "claude-3-5-sonnet-20240620":
@@ -161,7 +166,7 @@ class AnthropicHandler implements BaseProvider {
           return { message };
         }
         default: {
-          const message = await this.client.messages.create({
+          const requestParams: any = {
             model: modelId,
             max_tokens: this.getModel().info.maxTokens,
             temperature: 0.2,
@@ -169,10 +174,16 @@ class AnthropicHandler implements BaseProvider {
             messages: messages.map(msg => ({
               ...msg,
               content: typeof msg.content === "string" ? [{ type: "text" as const, text: msg.content }] : msg.content
-            })),
-            tools: tools || [],
-            tool_choice: { type: "auto" as const },
-          });
+            }))
+          };
+
+          // Only add tools and tool_choice if tools are provided
+          if (tools && tools.length > 0) {
+            requestParams.tools = tools;
+            requestParams.tool_choice = { type: "auto" as const };
+          }
+
+          const message = await this.client.messages.create(requestParams);
           return { message };
         }
       }

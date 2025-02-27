@@ -10,7 +10,7 @@ class Perplexity {
         this.model = model;
         this.device_map = device_map;
         this.apiKey = apiKey;
-        this.apiEndpoint = apiEndpoint !== null && apiEndpoint !== void 0 ? apiEndpoint : 'https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/perplexity-ai';
+        this.apiEndpoint = apiEndpoint ?? 'https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/perplexity-ai';
     }
     async createCompletion(options) {
         try {

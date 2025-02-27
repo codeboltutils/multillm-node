@@ -11,4 +11,4 @@ declare class Multillm implements LLMProvider {
     getModels(): Promise<any>;
     getProviders(): Provider[];
 }
-export = Multillm;
+export default Multillm;

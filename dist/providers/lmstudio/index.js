@@ -10,11 +10,11 @@ class LMStudio {
         this.model = model;
         this.device_map = device_map;
         this.embeddingModels = [];
-        this.apiEndpoint = apiEndpoint !== null && apiEndpoint !== void 0 ? apiEndpoint : "http://localhost:1234/v1";
+        this.apiEndpoint = apiEndpoint ?? "http://localhost:1234/v1";
     }
     async createCompletion(options) {
         try {
-            console.log(options.messages);
+            console.log("The options are:" + JSON.stringify(options));
             const response = await axios_1.default.post(`${this.apiEndpoint}/chat/completions`, {
                 model: options.model,
                 messages: options.messages,
