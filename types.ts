@@ -14,7 +14,16 @@ export type SupportedProvider =
   | "anthropic"
   | "perplexity"
   | "lmstudio"
-  | "mistral";
+  | "mistral"
+  | "gemini"
+  | "grok"
+  | "ollama"
+  | "bedrock"
+  | "huggingface"
+  | "github"
+  | "groq"
+  | "replicate"
+  | "cloudflare";
 
 export interface BaseProvider {
   model: string | null;
