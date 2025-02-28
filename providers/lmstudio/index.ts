@@ -1,14 +1,35 @@
 import axios from 'axios';
 import type { BaseProvider } from '../../types';
+import parseToolToSystemPrompt, { parseAssistantMessage } from './../../utils/toolParser'
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
-  content: string;
+  content: any;
 }
 
+interface ToolFunction {
+  name: string;
+  description: string;
+  parameters: {
+    type: string;
+    properties: {
+      command: {
+        type: string;
+        description: string;
+      }
+    };
+    required: string[];
+  };
+}
+
+interface Tool {
+  type: string;
+  function: ToolFunction;
+}
 interface CompletionOptions {
   model: string;
   messages: Message[];
+  tools: Tool[]
 }
 
 interface CompletionResponse {
@@ -56,12 +77,11 @@ class LMStudio implements BaseProvider {
 
   async createCompletion(options: CompletionOptions): Promise<CompletionResponse | Error> {
     try {
-      console.log(options.messages);
-      const response = await axios.post<CompletionResponse>(
+      const response = await axios.post(
         `${this.apiEndpoint}/chat/completions`,
         {
           model: options.model,
-          messages: options.messages,
+          messages: options.tools ? parseToolToSystemPrompt(options.messages, options.tools) : options.messages
         },
         {
           headers: {
@@ -69,7 +89,7 @@ class LMStudio implements BaseProvider {
           },
         }
       );
-
+      response.data.choices = parseAssistantMessage (response.data.choices[0].message.content,options.tools)
       return response.data;
     } catch (error) {
       console.error("Error generating completion:", error);

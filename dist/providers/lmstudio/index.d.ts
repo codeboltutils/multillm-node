@@ -1,11 +1,30 @@
 import type { BaseProvider } from '../../types';
 interface Message {
     role: 'user' | 'assistant' | 'system';
-    content: string;
+    content: any;
+}
+interface ToolFunction {
+    name: string;
+    description: string;
+    parameters: {
+        type: string;
+        properties: {
+            command: {
+                type: string;
+                description: string;
+            };
+        };
+        required: string[];
+    };
+}
+interface Tool {
+    type: string;
+    function: ToolFunction;
 }
 interface CompletionOptions {
     model: string;
     messages: Message[];
+    tools: Tool[];
 }
 interface CompletionResponse {
     id: string;

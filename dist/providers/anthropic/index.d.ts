@@ -1,5 +1,3 @@
-import type { Message, MessageParam } from '@anthropic-ai/sdk/resources/messages';
-import type { PromptCachingBetaMessage } from '@anthropic-ai/sdk/resources/beta/prompt-caching';
 import type { BaseProvider } from '../../types';
 interface AnthropicModelInfo {
     maxTokens: number;
@@ -11,14 +9,6 @@ interface AnthropicModelInfo {
     cacheWritesPrice: number;
     cacheReadsPrice: number;
 }
-interface AnthropicCreateParams {
-    messages: MessageParam[];
-    system: Array<{
-        text: string;
-    }>;
-    tools?: any[];
-    model: string;
-}
 declare class AnthropicHandler implements BaseProvider {
     private embeddingModels;
     private options;
@@ -28,9 +18,22 @@ declare class AnthropicHandler implements BaseProvider {
     apiKey: string | null;
     apiEndpoint: string | null;
     constructor(model?: string | null, device_map?: string | null, apiKey?: string | null, apiEndpoint?: string | null);
-    createCompletion(createParams: AnthropicCreateParams): Promise<{
-        message: Message | PromptCachingBetaMessage;
-    } | Error>;
+    createCompletion(createParams: any): Promise<Error | {
+        id: any;
+        object: string;
+        created: number;
+        model: any;
+        choices: {
+            index: number;
+            message: {
+                role: any;
+                content: string;
+                tool_calls: any;
+            };
+            finish_reason: any;
+        }[];
+        usage: any;
+    }>;
     getModel(modelId?: string): {
         id: string;
         info: AnthropicModelInfo;
