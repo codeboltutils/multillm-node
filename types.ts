@@ -23,6 +23,7 @@ export type SupportedProvider =
   | "github"
   | "groq"
   | "replicate"
+  | "openrouter"
   | "cloudflare";
 
 export interface BaseProvider {

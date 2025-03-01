@@ -11,3 +11,4 @@ export { default as Grok } from './grok';
 export { default as Ollama } from './ollama';
 export { default as LMStudio } from './lmstudio';
 export { default as CodeBolt } from './codebolt';
+export { default as OpenRouter } from './openrouter';
