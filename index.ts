@@ -14,6 +14,7 @@ import HuggingFace from './providers/huggingface/index';
 import ReplicateAI from './providers/replicate/index';
 import Bedrock from './providers/bedrock/index';
 import CloudflareAI from './providers/cloudflare/index';
+import Groq from './providers/groq/index';
 
 class Multillm implements LLMProvider {
   public provider: SupportedProvider;
@@ -94,6 +95,10 @@ class Multillm implements LLMProvider {
           apiEndpoint: this.apiEndpoint || '',
           model: this.model || '@cf/meta/llama-3.1-8b-instruct'
         });
+        break;
+      }
+      case "groq": {
+        this.instance = new Groq(this.model, this.device_map, this.apiKey, this.apiEndpoint);
         break;
       }
       default: {
@@ -218,6 +223,14 @@ class Multillm implements LLMProvider {
         name: "Cloudflare AI",
         apiUrl: "https://gateway.ai.cloudflare.com/v1",
         keyAdded: this.provider === 'cloudflare' && !!this.apiKey,
+        category: 'cloudProviders' as const
+      },
+      {
+        id: 14,
+        logo: "groq-logo.png",
+        name: "groq",
+        apiUrl: this.apiEndpoint || "https://api.groq.com/v1",
+        keyAdded: this.provider === 'groq' && !!this.apiKey,
         category: 'cloudProviders' as const
       }
     ];

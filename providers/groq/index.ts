@@ -2,6 +2,14 @@ import axios from 'axios';
 import { handleError } from '../../utils/errorHandler';
 import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 
+interface GroqErrorResponse {
+  error: {
+    message: string;
+    type?: string;
+    code?: string;
+  };
+}
+
 interface GroqMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -44,6 +52,14 @@ class Groq implements LLMProvider {
 
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
+      if (!options.messages || options.messages.length === 0) {
+        throw new Error("Messages array must not be empty");
+      }
+
+      if (!this.apiKey) {
+        throw new Error("API key is required");
+      }
+
       const response = await axios.post(
         `${this.apiEndpoint}/chat/completions`,
         {
@@ -63,6 +79,28 @@ class Groq implements LLMProvider {
         }
       );
 
+      if (options.stream) {
+        return {
+          id: 'stream',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: options.model || this.model || "mixtral-8x7b-32768",
+          choices: [{
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: ''
+            },
+            finish_reason: null
+          }],
+          usage: {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0
+          }
+        };
+      }
+
       return {
         id: response.data.id,
         object: 'chat.completion',
@@ -79,7 +117,12 @@ class Groq implements LLMProvider {
         usage: response.data.usage
       };
     } catch (error) {
-      throw handleError(error);
+      const errorResponse = handleError(error) as { error: string | GroqErrorResponse['error'] };
+      if (typeof errorResponse.error === 'object' && 'message' in errorResponse.error) {
+        throw new Error(errorResponse.error.message);
+      } else {
+        throw new Error(String(errorResponse.error));
+      }
     }
   }
 
@@ -87,7 +130,7 @@ class Groq implements LLMProvider {
     return [{
       id: 7,
       logo: "groq-logo.png",
-      name: "Groq",
+      name: "groq",
       apiUrl: this.apiEndpoint || "https://api.groq.com/v1",
       keyAdded: !!this.apiKey,
       category: 'cloudProviders'
