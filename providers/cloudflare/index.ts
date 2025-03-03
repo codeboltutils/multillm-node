@@ -16,7 +16,7 @@ export class CloudflareAIProvider implements LLMProvider {
 
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      const response = await fetch(`${this.apiEndpoint}`, {
+      const response = await fetch(`${this.apiEndpoint}/${this.model}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
