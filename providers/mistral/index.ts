@@ -1,48 +1,33 @@
 import axios from 'axios';
-import type { BaseProvider } from '../../types';
+import { handleError } from '../../utils/errorHandler';
+import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 
-interface Message {
+interface MistralMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
-interface CompletionOptions {
-  model: string;
-  messages: Message[];
+function transformMessages(messages: ChatMessage[]): MistralMessage[] {
+  return messages.map(message => ({
+    role: message.role === 'function' || message.role === 'tool' ? 'user' : 
+          message.role === 'assistant' ? 'assistant' : 
+          message.role === 'system' ? 'system' : 'user',
+    content: message.content || ''
+  }));
 }
 
-interface CompletionResponse {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  choices: Array<{
-    index: number;
-    message: Message;
-    finish_reason: string;
-  }>;
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
+interface MistralChoice {
+  index: number;
+  message: MistralMessage;
+  finish_reason: string;
 }
 
-interface ModelsResponse {
-  object: string;
-  data: Array<{
-    id: string;
-    object: string;
-    created: number;
-    owned_by: string;
-  }>;
-}
-
-class MistralAI implements BaseProvider {
+class MistralAI implements LLMProvider {
   public model: string | null;
   public device_map: string | null;
   public apiKey: string | null;
-  public apiEndpoint: string;
+  public apiEndpoint: string | null;
+  public provider: "mistral";
 
   constructor(
     model: string | null = null,
@@ -50,20 +35,25 @@ class MistralAI implements BaseProvider {
     apiKey: string | null = null,
     apiEndpoint: string | null = null
   ) {
-    this.model = model;
+    this.model = model || "mistral-large-latest";
     this.device_map = device_map;
     this.apiKey = apiKey;
     this.apiEndpoint = apiEndpoint ?? "https://api.mistral.ai/v1";
+    this.provider = "mistral";
   }
 
-  async createCompletion(options: CompletionOptions): Promise<CompletionResponse | Error> {
+  async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      console.log(options.messages);
-      const response = await axios.post<CompletionResponse>(
+      const response = await axios.post(
         `${this.apiEndpoint}/chat/completions`,
         {
-          model: options.model,
-          messages: options.messages,
+          model: options.model || this.model || "mistral-large-latest",
+          messages: transformMessages(options.messages),
+          temperature: options.temperature,
+          max_tokens: options.max_tokens,
+          top_p: options.top_p,
+          stream: options.stream,
+          stop: options.stop
         },
         {
           headers: {
@@ -73,16 +63,41 @@ class MistralAI implements BaseProvider {
         }
       );
 
-      return response.data;
+      // Transform Mistral response to standard format
+      return {
+        id: response.data.id,
+        object: 'chat.completion',
+        created: response.data.created,
+        model: response.data.model,
+        choices: response.data.choices.map((choice: MistralChoice) => ({
+          index: choice.index,
+          message: {
+            role: choice.message.role,
+            content: choice.message.content
+          },
+          finish_reason: choice.finish_reason
+        })),
+        usage: response.data.usage
+      };
     } catch (error) {
-      console.error("Error generating completion:", error);
-      return error as Error;
+      throw handleError(error);
     }
   }
 
-  async getModels(): Promise<ModelsResponse | Error> {
+  getProviders(): Provider[] {
+    return [{
+      id: 3,
+      logo: "mistral-logo.png",
+      name: "Mistral AI",
+      apiUrl: this.apiEndpoint || "https://api.mistral.ai/v1",
+      keyAdded: !!this.apiKey,
+      category: 'cloudProviders'
+    }];
+  }
+
+  async getModels() {
     try {
-      const response = await axios.get<ModelsResponse>(
+      const response = await axios.get(
         `${this.apiEndpoint}/models`,
         {
           headers: {
@@ -91,10 +106,15 @@ class MistralAI implements BaseProvider {
           },
         }
       );
-      return response.data;
+
+      return response.data.data.map((model: { id: string }) => ({
+        id: model.id,
+        name: model.id,
+        provider: "Mistral",
+        type: "chat"
+      }));
     } catch (error) {
-      console.error("Error fetching models:", error);
-      return error as Error;
+      throw handleError(error);
     }
   }
 }

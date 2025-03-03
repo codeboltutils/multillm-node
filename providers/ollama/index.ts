@@ -1,68 +1,125 @@
 import axios from 'axios';
 import { handleError } from '../../utils/errorHandler';
-import type { BaseProvider } from '../../types';
+import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 
-interface OllamaOptions extends BaseProvider {
-  model: string | null;
-  device_map: string | null;
-  apiKey: string | null;
-  apiEndpoint: string | null;
+interface OllamaMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
 }
 
-class Ollama implements BaseProvider {
-  private options: OllamaOptions;
-  private chatModels: string[];
+function transformMessages(messages: ChatMessage[]): OllamaMessage[] {
+  return messages.map(message => ({
+    role: message.role === 'function' || message.role === 'tool' ? 'user' : 
+          message.role === 'assistant' ? 'assistant' : 
+          message.role === 'system' ? 'system' : 'user',
+    content: message.content || ''
+  }));
+}
+
+class Ollama implements LLMProvider {
+  private defaultModels: string[];
   public model: string | null;
   public device_map: string | null;
   public apiKey: string | null;
   public apiEndpoint: string | null;
+  public provider: "ollama";
 
   constructor(
     model: string | null = null,
     device_map: string | null = null,
     apiKey: string | null = null,
-    apiEndpoint: string | null = "http://localhost:11434"
+    apiEndpoint: string | null = null
   ) {
-    this.chatModels = ["llama2", "mistral", "codellama", "mixtral"];
-    this.model = model || "llama2";
+    this.defaultModels = [
+      "llama2",
+      "codellama",
+      "mistral",
+      "mixtral",
+      "phi",
+      "neural-chat",
+      "starling-lm"
+    ];
+    this.model = model || "mixtral";
     this.device_map = device_map;
     this.apiKey = apiKey;
-    this.apiEndpoint = apiEndpoint;
-    
-    this.options = { model: this.model, device_map, apiKey, apiEndpoint };
+    this.apiEndpoint = apiEndpoint ?? "http://localhost:11434";
+    this.provider = "ollama";
   }
 
-  async createCompletion(options: any) {
+  async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      const response = await axios.post(`${this.apiEndpoint}/api/chat`, {
-        model: this.model,
-        messages: options.messages,
-        stream: false
-      });
+      const response = await axios.post(
+        `${this.apiEndpoint}/api/chat`,
+        {
+          model: options.model || this.model || "mixtral",
+          messages: transformMessages(options.messages),
+          options: {
+            temperature: options.temperature,
+            top_p: options.top_p,
+            num_predict: options.max_tokens,
+            stop: options.stop
+          },
+          stream: options.stream
+        }
+      );
 
       return {
+        id: `ollama-${Date.now()}`,
+        object: 'chat.completion',
+        created: Date.now(),
+        model: options.model || this.model || "mixtral",
         choices: [{
+          index: 0,
           message: {
             role: 'assistant',
             content: response.data.message.content
-          }
-        }]
+          },
+          finish_reason: response.data.done ? 'stop' : null
+        }],
+        usage: {
+          prompt_tokens: response.data.prompt_eval_count || 0,
+          completion_tokens: response.data.eval_count || 0,
+          total_tokens: (response.data.prompt_eval_count || 0) + (response.data.eval_count || 0)
+        }
       };
     } catch (error) {
-      return handleError(error);
+      throw handleError(error);
     }
+  }
+
+  getProviders(): Provider[] {
+    return [{
+      id: 5,
+      logo: "ollama-logo.png",
+      name: "Ollama",
+      apiUrl: this.apiEndpoint || "http://localhost:11434",
+      keyAdded: true, // Ollama doesn't require API key
+      category: 'localProviders'
+    }];
   }
 
   async getModels() {
     try {
       const response = await axios.get(`${this.apiEndpoint}/api/tags`);
-      return response.data.models.map((model: any) => ({
-        id: model.name,
+      
+      // Combine default models with installed models
+      const installedModels = response.data.models || [];
+      const allModels = [...new Set([...this.defaultModels, ...installedModels.map((m: any) => m.name)])];
+      
+      return allModels.map(modelId => ({
+        id: modelId,
+        name: modelId,
         provider: "Ollama",
         type: "chat"
       }));
     } catch (error) {
-      return handleError(error);
+      // If we can't reach Ollama, return default models
+      return this.defaultModels.map(modelId => ({
+        id: modelId,
+        name: modelId,
+        provider: "Ollama",
+        type: "chat"
+      }));
     }
   }
 }

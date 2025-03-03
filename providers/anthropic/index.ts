@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { Message, MessageParam } from '@anthropic-ai/sdk/resources/messages';
+import type { Message, MessageParam, ContentBlock, TextBlock, ToolUseBlock } from '@anthropic-ai/sdk/resources/messages';
 import type { PromptCachingBetaMessage, PromptCachingBetaMessageParam } from '@anthropic-ai/sdk/resources/beta/prompt-caching';
-import type { BaseProvider, ToolSchema } from '../../types';
+import type { BaseProvider, ToolSchema, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 // ... existing code ...
 
 function transformMessages(messages: any[]) {
@@ -239,19 +239,94 @@ const anthropicModels: AnthropicModels = {
   },
 };
 
-class AnthropicHandler implements BaseProvider {
-  private embeddingModels: string[];
-  private options: {
-    model: string | null;
-    device_map: string | null;
-    apiKey: string | null;
-    apiEndpoint: string | null;
+interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
   };
+}
+
+function transformToAnthropicMessages(messages: ChatMessage[]): MessageParam[] {
+  return messages.map(message => {
+    const content: ContentBlock[] = [];
+    
+    if (message.content) {
+      content.push({
+        type: 'text' as const,
+        text: message.content
+      });
+    }
+
+    if (message.tool_calls) {
+      message.tool_calls.forEach((toolCall: ToolCall) => {
+        content.push({
+          type: 'tool_use' as const,
+          tool_name: toolCall.function.name,
+          tool_input: JSON.parse(toolCall.function.arguments)
+        });
+      });
+    }
+
+    return {
+      role: message.role === 'assistant' ? 'assistant' : 'user',
+      content: content.length > 0 ? content : ''
+    };
+  });
+}
+
+function convertToStandardResponse(anthropicResponse: Message): ChatCompletionResponse {
+  const toolCalls: ToolCall[] = [];
+  let messageContent = '';
+
+  if (Array.isArray(anthropicResponse.content)) {
+    anthropicResponse.content.forEach(item => {
+      if (item.type === 'text') {
+        messageContent += (item as TextBlock).text + '\n';
+      } else if (item.type === 'tool_use') {
+        const toolUse = item as any; // Using any here since Anthropic types don't fully match our needs
+        toolCalls.push({
+          id: toolUse.id || `tool_${Date.now()}`,
+          type: 'function',
+          function: {
+            name: toolUse.tool_name,
+            arguments: JSON.stringify(toolUse.tool_input)
+          }
+        });
+      }
+    });
+  }
+
+  return {
+    id: anthropicResponse.id,
+    object: 'chat.completion',
+    created: Date.now(),
+    model: anthropicResponse.model,
+    choices: [{
+      index: 0,
+      message: {
+        role: 'assistant',
+        content: messageContent.trim(),
+        tool_calls: toolCalls.length > 0 ? toolCalls : undefined
+      },
+      finish_reason: anthropicResponse.stop_reason || null
+    }],
+    usage: {
+      prompt_tokens: anthropicResponse.usage.input_tokens,
+      completion_tokens: anthropicResponse.usage.output_tokens,
+      total_tokens: anthropicResponse.usage.input_tokens + anthropicResponse.usage.output_tokens
+    }
+  };
+}
+
+class AnthropicHandler implements LLMProvider {
   private client: Anthropic;
   public model: string | null;
   public device_map: string | null;
   public apiKey: string | null;
   public apiEndpoint: string | null;
+  public provider: "anthropic";
 
   constructor(
     model: string | null = null,
@@ -259,205 +334,75 @@ class AnthropicHandler implements BaseProvider {
     apiKey: string | null = null,
     apiEndpoint: string | null = null
   ) {
-    this.embeddingModels = [];
-    this.model = model;
+    this.model = model || "claude-3-sonnet-20240229";
     this.device_map = device_map;
     this.apiKey = apiKey;
     this.apiEndpoint = apiEndpoint;
-    this.options = { model, device_map, apiKey, apiEndpoint };
+    this.provider = "anthropic";
+    
     this.client = new Anthropic({
-      baseURL: apiEndpoint || "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/anthropic",
-      apiKey: apiKey ?? undefined,
+      apiKey: apiKey || process.env.ANTHROPIC_API_KEY
     });
   }
 
-  async createCompletion(createParams: any) {
-    const { messages, tools, model } = createParams;
-
-    let systemPrompt = messages.find((message: { role: string; content: any }) => message.role === "system")?.content;
-    if (messages[0].role === "system") {
-      messages.shift();
-    }
-    console.log("message is");
-    console.log(JSON.stringify(createParams));
-    const modelId = model;
-
-    messages.forEach((message, index) => {
-      if (message.role === "tool" && message.tool_call_id) {
-        messages[index] =
-
-        {
-          "role": "user",
-          "content": [
-            {
-              type: "tool_result",
-              tool_use_id: message.tool_call_id,
-              content: message.content // Replace with actual content if needed
-            }
-          ]
-        }
-
-
-      }
-    });
-    let transformedMessages = transformMessages(messages)
-
+  async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      switch (modelId) {
-        case "claude-3-7-sonnet-20250219":
-        case "claude-3-opus-20240229":
-        case "claude-3-haiku-20240307": {
-          // ... existing code ...
-          const userMsgIndices = messages.reduce(
-            (acc: number[], msg: { role: string }, index: number) => (msg.role === "user" ? [...acc, index] : acc),
-            [] as number[]
-          );
-          // ... existing code ...
-          const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1;
-          const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1;
-          let inputMessage = {
-            model: modelId,
-            max_tokens: 8192, //this.getModel().info.maxTokens,
-            temperature: 0.2,
-            system: [{ text: systemPrompt, type: "text" as const, cache_control: { type: "ephemeral" as const } }],
-            messages: transformedMessages.map((message: any, index: number) => {
-
-          const requestParams: any = {
-            model: modelId,
-            max_tokens: this.getModel().info.maxTokens,
-            temperature: 0.2,
-            system: [{ text: systemPrompt[0].text, type: "text" as const, cache_control: { type: "ephemeral" as const } }],
-            messages: messages.map((message, index) => {
-              if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
-                return {
-                  ...message,
-                  content:
-                    typeof message.content === "string"
-                      ? [
-                          {
-                            type: "text" as const,
-                            text: message.content,
-                            cache_control: { type: "ephemeral" as const },
-                          },
-                        ]
-                      : (message.content as Array<{ type: string; text: string }>).map((content, contentIndex: number) =>
-                          contentIndex === message.content.length - 1
-                            ? { ...content, cache_control: { type: "ephemeral" as const } }
-                            : content
-                        ),
-                } as PromptCachingBetaMessageParam;
-              }
-              return message as PromptCachingBetaMessageParam;
-            })
-          };
-
-          // Only add tools and tool_choice if tools are provided
-          if (tools && tools.length > 0) {
-            requestParams.tools = tools;
-            requestParams.tool_choice = { type: "auto" as const };
+      const anthropicMessages = transformToAnthropicMessages(options.messages);
+      const systemMessage = options.messages.find(m => m.role === 'system')?.content;
+      
+      const response = await this.client.messages.create({
+        model: options.model || this.model || "claude-3-sonnet-20240229",
+        messages: anthropicMessages,
+        temperature: options.temperature,
+        max_tokens: options.max_tokens,
+        system: systemMessage,
+        tools: options.tools?.map(tool => ({
+          type: 'function' as const,
+          function: {
+            name: tool.function.name,
+            description: tool.function.description,
+            parameters: tool.function.parameters
           }
+        }))
+      });
 
-          const message = await this.client.beta.promptCaching.messages.create(
-            requestParams,
-            (() => {
-              switch (modelId) {
-                case "claude-3-7-sonnet-20250219":
-                  return {
-                    headers: {
-                      "anthropic-beta": "prompt-caching-2024-07-31",
-                    },
-                  };
-                case "claude-3-haiku-20240307":
-                  return {
-                    headers: { "anthropic-beta": "prompt-caching-2024-07-31" },
-                  };
-                default:
-                  return undefined;
-              }
-            })()
-          );
-
-          console.log(JSON.stringify(message))
-          return convertToOpenAIFormat(message);
-        }
-        default: {
-          const requestParams: any = {
-            model: modelId,
-            max_tokens: 1024,// this.getModel().info.maxTokens,
-            temperature: 0.2,
-            system: [{ text: systemPrompt[0].text, type: "text" as const }],
-            messages: messages.map((msg: { content: string | Array<{ type: string; text: string }> }) => ({
-              ...msg,
-              content: typeof msg.content === "string" ? [{ type: "text" as const, text: msg.content }] : msg.content
-            }))
-          };
-
-          // Only add tools and tool_choice if tools are provided
-          if (tools && tools.length > 0) {
-            requestParams.tools = convertFunctionFormat(tools);
-            requestParams.tool_choice = { type: "auto" as const };
-          }
-
-          const message = await this.client.messages.create(requestParams);
-          return convertToOpenAIFormat(message);
-        }
-      }
+      return convertToStandardResponse(response);
     } catch (error) {
-      return error as Error;
+      throw error;
     }
   }
 
-  getModel(modelId?: string) {
-    if (modelId && modelId in anthropicModels) {
-      return { id: modelId, info: anthropicModels[modelId] };
-    }
-    return { id: anthropicDefaultModelId, info: anthropicModels[anthropicDefaultModelId] };
+  getProviders(): Provider[] {
+    return [{
+      id: 2,
+      logo: "anthropic-logo.png",
+      name: "Anthropic",
+      apiUrl: "https://api.anthropic.com",
+      keyAdded: !!this.apiKey,
+      category: 'cloudProviders'
+    }];
   }
 
   async getModels() {
     return [
       {
-        id: "claude-3-7-sonnet-20250219",
+        id: "claude-3-opus-20240229",
+        name: "Claude 3 Opus",
         provider: "Anthropic",
-        max_tokens: 8192,
-        context_window: 200000,
-        supports_images: true,
-        supports_prompt_cache: true,
-        pricing: {
-          input_price_per_million_tokens: 3.0,
-          output_price_per_million_tokens: 15.0,
-          cache_writes_price_per_million_tokens: 3.75,
-          cache_reads_price_per_million_tokens: 0.3,
-        },
+        type: "chat"
       },
       {
-        id: "claude-3-opus-20240229",
-        max_tokens: 4096,
+        id: "claude-3-sonnet-20240229",
+        name: "Claude 3 Sonnet",
         provider: "Anthropic",
-        context_window: 200000,
-        supports_images: true,
-        supports_prompt_cache: true,
-        pricing: {
-          input_price_per_million_tokens: 15.0,
-          output_price_per_million_tokens: 75.0,
-          cache_writes_price_per_million_tokens: 18.75,
-          cache_reads_price_per_million_tokens: 1.5,
-        },
+        type: "chat"
       },
       {
         id: "claude-3-haiku-20240307",
-        max_tokens: 4096,
+        name: "Claude 3 Haiku",
         provider: "Anthropic",
-        context_window: 200000,
-        supports_images: true,
-        supports_prompt_cache: true,
-        pricing: {
-          input_price_per_million_tokens: 0.25,
-          output_price_per_million_tokens: 1.25,
-          cache_writes_price_per_million_tokens: 0.3,
-          cache_reads_price_per_million_tokens: 0.03,
-        },
-      },
+        type: "chat"
+      }
     ];
   }
 }

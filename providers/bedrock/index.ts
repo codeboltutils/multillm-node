@@ -1,188 +1,158 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
-import { handleError } from '../../utils/errorHandler';
-import type { BaseProvider } from '../../types';
 import axios from 'axios';
+import { handleError } from '../../utils/errorHandler';
+import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 
-interface BedrockOptions extends BaseProvider {
-  model: string | null;
-  device_map: string | null;
-  apiKey: string | null;
-  apiEndpoint: string | null;
-  region?: string;
-  accessKeyId?: string;
-  secretAccessKey?: string;
+interface BedrockMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
 }
 
-class Bedrock implements BaseProvider {
-  private options: BedrockOptions;
-  private client: BedrockRuntimeClient;
-  private chatModels: string[];
+function transformMessages(messages: ChatMessage[]): BedrockMessage[] {
+  return messages.map(message => ({
+    role: message.role === 'function' || message.role === 'tool' ? 'user' : 
+          message.role === 'assistant' ? 'assistant' : 
+          message.role === 'system' ? 'system' : 'user',
+    content: message.content || ''
+  }));
+}
+
+class Bedrock implements LLMProvider {
+  private defaultModels: string[];
   public model: string | null;
   public device_map: string | null;
   public apiKey: string | null;
   public apiEndpoint: string | null;
+  public provider: "bedrock";
 
   constructor(
     model: string | null = null,
     device_map: string | null = null,
     apiKey: string | null = null,
-    apiEndpoint: string | null = null,
-    region: string = "us-east-1",
-    accessKeyId?: string,
-    secretAccessKey?: string
+    apiEndpoint: string | null = null
   ) {
-    this.chatModels = [
-      "anthropic.claude-v2",
-      "anthropic.claude-v2:1",
-      "anthropic.claude-3-sonnet-20240229-v1:0",
-      "meta.llama2-13b-chat-v1",
+    this.defaultModels = [
+      "anthropic.claude-3-sonnet-20240229",
+      "anthropic.claude-3-haiku-20240307",
+      "anthropic.claude-instant-v1",
       "meta.llama2-70b-chat-v1",
-      "amazon.titan-text-express-v1"
+      "amazon.titan-text-express-v1",
+      "cohere.command-text-v14"
     ];
-    this.model = model || "anthropic.claude-v2";
+    this.model = model || "anthropic.claude-3-sonnet-20240229";
     this.device_map = device_map;
     this.apiKey = apiKey;
-    this.apiEndpoint = apiEndpoint || "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/aws/bedrock-runtime";
-    
-    this.options = { 
-      model: this.model,
-      device_map,
-      apiKey,
-      apiEndpoint: this.apiEndpoint,
-      region,
-      accessKeyId,
-      secretAccessKey
-    };
-
-    // Initialize AWS client for fallback
-    this.client = new BedrockRuntimeClient({
-      region: region,
-      credentials: {
-        accessKeyId: accessKeyId || '',
-        secretAccessKey: secretAccessKey || ''
-      }
-    });
+    this.apiEndpoint = apiEndpoint ?? "https://bedrock-runtime.us-east-1.amazonaws.com/v1";
+    this.provider = "bedrock";
   }
 
-  private formatPrompt(messages: any[]): string {
-    if (this.model?.startsWith('anthropic.')) {
-      return messages.map(msg => {
-        const role = msg.role === 'assistant' ? 'Assistant' : 'Human';
-        return `\\n\\n${role}: ${msg.content}`;
-      }).join('') + '\\n\\nAssistant:';
-    } else if (this.model?.startsWith('meta.')) {
-      return messages.map(msg => {
-        const role = msg.role === 'assistant' ? 'Assistant' : 'Human';
-        return `[${role}]: ${msg.content}\\n`;
-      }).join('') + '[Assistant]:';
-    } else {
-      // Default format for Titan and other models
-      return messages.map(msg => msg.content).join('\\n');
-    }
-  }
-
-  async createCompletion(options: any) {
+  async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      const prompt = this.formatPrompt(options.messages);
-      
-      let body: any = {};
-      if (this.model?.startsWith('anthropic.')) {
-        body = {
-          prompt,
-          max_tokens: options.max_tokens || 2000,
-          temperature: options.temperature || 0.7,
-          anthropic_version: "bedrock-2023-05-31"
+      const modelId = options.model || this.model || "anthropic.claude-3-sonnet-20240229";
+      const messages = transformMessages(options.messages);
+
+      // Different models have different request formats
+      let requestBody;
+      if (modelId.startsWith('anthropic.')) {
+        requestBody = {
+          anthropic_version: "bedrock-2023-05-31",
+          messages: messages,
+          max_tokens: options.max_tokens || 1024,
+          temperature: options.temperature,
+          top_p: options.top_p,
+          stop_sequences: options.stop
         };
-      } else if (this.model?.startsWith('meta.')) {
-        body = {
-          prompt,
-          max_gen_len: options.max_tokens || 2000,
-          temperature: options.temperature || 0.7
+      } else if (modelId.startsWith('meta.')) {
+        requestBody = {
+          prompt: messages.map(m => `${m.role}: ${m.content}`).join('\n'),
+          max_gen_len: options.max_tokens,
+          temperature: options.temperature,
+          top_p: options.top_p
         };
-      } else {
-        body = {
-          inputText: prompt,
+      } else if (modelId.startsWith('amazon.')) {
+        requestBody = {
+          inputText: messages.map(m => `${m.role}: ${m.content}`).join('\n'),
           textGenerationConfig: {
-            maxTokenCount: options.max_tokens || 2000,
-            temperature: options.temperature || 0.7
+            maxTokenCount: options.max_tokens,
+            temperature: options.temperature,
+            topP: options.top_p,
+            stopSequences: options.stop
           }
+        };
+      } else if (modelId.startsWith('cohere.')) {
+        requestBody = {
+          prompt: messages.map(m => `${m.role}: ${m.content}`).join('\n'),
+          max_tokens: options.max_tokens,
+          temperature: options.temperature,
+          p: options.top_p,
+          stop_sequences: options.stop
         };
       }
 
-      try {
-        // Try using Cloudflare Gateway first
-        const response = await axios.post(
-          `${this.apiEndpoint}/model/${this.model}`,
-          body,
-          {
-            headers: {
-              'Authorization': `Bearer ${this.apiKey}`,
-              'Content-Type': 'application/json'
-            }
+      const response = await axios.post(
+        `${this.apiEndpoint}/models/${modelId}/invoke`,
+        requestBody,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${this.apiKey}`
           }
-        );
-
-        let content = '';
-        if (this.model?.startsWith('anthropic.')) {
-          content = response.data.completion;
-        } else if (this.model?.startsWith('meta.')) {
-          content = response.data.generation;
-        } else {
-          content = response.data.results[0].outputText;
         }
+      );
 
-        return {
-          choices: [{
-            message: {
-              role: 'assistant',
-              content: content
-            }
-          }]
-        };
-      } catch (error) {
-        // Fallback to direct AWS Bedrock if Cloudflare fails
-        console.warn('Cloudflare Gateway failed, falling back to direct AWS Bedrock:', error);
-        const command = new InvokeModelCommand({
-          modelId: this.model || 'anthropic.claude-v2',
-          body: JSON.stringify(body)
-        });
-
-        const response = await this.client.send(command);
-        const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-
-        let content = '';
-        if (this.model?.startsWith('anthropic.')) {
-          content = responseBody.completion;
-        } else if (this.model?.startsWith('meta.')) {
-          content = responseBody.generation;
-        } else {
-          content = responseBody.results[0].outputText;
-        }
-
-        return {
-          choices: [{
-            message: {
-              role: 'assistant',
-              content: content
-            }
-          }]
-        };
+      // Transform response based on model
+      let content = '';
+      if (modelId.startsWith('anthropic.')) {
+        content = response.data.content[0].text;
+      } else if (modelId.startsWith('meta.')) {
+        content = response.data.generation;
+      } else if (modelId.startsWith('amazon.')) {
+        content = response.data.results[0].outputText;
+      } else if (modelId.startsWith('cohere.')) {
+        content = response.data.generations[0].text;
       }
+
+      return {
+        id: `bedrock-${Date.now()}`,
+        object: 'chat.completion',
+        created: Date.now(),
+        model: modelId,
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: content
+          },
+          finish_reason: 'stop'
+        }],
+        usage: {
+          prompt_tokens: response.data.usage?.input_tokens || 0,
+          completion_tokens: response.data.usage?.output_tokens || 0,
+          total_tokens: (response.data.usage?.input_tokens || 0) + (response.data.usage?.output_tokens || 0)
+        }
+      };
     } catch (error) {
-      return handleError(error);
+      throw handleError(error);
     }
+  }
+
+  getProviders(): Provider[] {
+    return [{
+      id: 8,
+      logo: "bedrock-logo.png",
+      name: "AWS Bedrock",
+      apiUrl: this.apiEndpoint || "https://bedrock-runtime.us-east-1.amazonaws.com/v1",
+      keyAdded: !!this.apiKey,
+      category: 'cloudProviders'
+    }];
   }
 
   async getModels() {
-    try {
-      return this.chatModels.map(modelId => ({
-        id: modelId,
-        provider: "Bedrock",
-        type: "chat"
-      }));
-    } catch (error) {
-      return handleError(error);
-    }
+    return this.defaultModels.map(modelId => ({
+      id: modelId,
+      name: modelId,
+      provider: "Bedrock",
+      type: "chat"
+    }));
   }
 }
 

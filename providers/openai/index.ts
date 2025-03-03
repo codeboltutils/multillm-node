@@ -1,19 +1,48 @@
 import axios from 'axios';
 import { handleError } from '../../utils/errorHandler';
 import { OpenAI as OpenAIApi, AzureOpenAI } from 'openai';
-import type { ChatCompletion, ChatCompletionChunk, ChatCompletionCreateParams } from 'openai/resources/chat';
+import type { ChatCompletion, ChatCompletionChunk, ChatCompletionCreateParams, ChatCompletionMessageParam, ChatCompletionSystemMessageParam, ChatCompletionUserMessageParam, ChatCompletionAssistantMessageParam, ChatCompletionFunctionMessageParam } from 'openai/resources/chat';
 import type { Stream } from 'openai/streaming';
-import type { BaseProvider } from '../../types';
+import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 
-interface OpenAIOptions extends BaseProvider {
-  model: string | null;
-  device_map: string | null;
-  apiKey: string | null;
-  apiEndpoint: string | null;
+function transformMessages(messages: ChatMessage[]): ChatCompletionMessageParam[] {
+  return messages.map(message => {
+    if (message.role === 'function') {
+      const functionMessage: ChatCompletionFunctionMessageParam = {
+        role: 'function',
+        name: message.name || 'unknown',
+        content: message.content || ''
+      };
+      return functionMessage;
+    }
+    
+    if (message.role === 'assistant' && message.tool_calls) {
+      const assistantMessage: ChatCompletionAssistantMessageParam = {
+        role: 'assistant',
+        content: message.content || '',
+        tool_calls: message.tool_calls
+      };
+      return assistantMessage;
+    }
+    
+    if (message.role === 'system') {
+      const systemMessage: ChatCompletionSystemMessageParam = {
+        role: 'system',
+        content: message.content || ''
+      };
+      return systemMessage;
+    }
+    
+    const userMessage: ChatCompletionUserMessageParam = {
+      role: 'user',
+      content: message.content || ''
+    };
+    return userMessage;
+  });
 }
 
-class OpenAI implements BaseProvider {
-  private options: OpenAIOptions;
+class OpenAI implements LLMProvider {
+  private options: BaseProvider;
   private client: OpenAIApi | AzureOpenAI;
   private embeddingModels: string[];
   private chatModels: string[];
@@ -21,6 +50,7 @@ class OpenAI implements BaseProvider {
   public device_map: string | null;
   public apiKey: string | null;
   public apiEndpoint: string | null;
+  public provider: "openai";
 
   constructor(
     model: string | null = null,
@@ -29,11 +59,12 @@ class OpenAI implements BaseProvider {
     apiEndpoint: string | null = null
   ) {
     this.embeddingModels = ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"];
-    this.chatModels = ["gpt-4o-mini", "gpt-4o"];
+    this.chatModels = ["gpt-4", "gpt-3.5-turbo"];
     this.model = model;
     this.device_map = device_map;
     this.apiKey = apiKey;
-    this.apiEndpoint = apiEndpoint ?? "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/openai";
+    this.apiEndpoint = apiEndpoint ?? "https://api.openai.com/v1";
+    this.provider = "openai";
     
     this.options = { model, device_map, apiKey, apiEndpoint: this.apiEndpoint };
 
@@ -41,7 +72,7 @@ class OpenAI implements BaseProvider {
       this.client = new AzureOpenAI({
         baseURL: apiEndpoint,
         apiKey: apiKey ?? undefined,
-        apiVersion: "2024-08-01-preview",
+        apiVersion: "2024-02-15-preview",
       });
     } else {
       this.client = new OpenAIApi({
@@ -51,44 +82,49 @@ class OpenAI implements BaseProvider {
     }
   }
 
-  async createCompletion(
-    createParams: ChatCompletionCreateParams
-  ): Promise<
-    | (ChatCompletion & { _request_id?: string | null })
-    | (Stream<ChatCompletionChunk> & { _request_id?: string | null })
-    | { error: string }
-  > {
+  async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      const completion = await this.client.chat.completions.create(createParams);
-      console.log("completion");
-      return completion;
+      const completion = await this.client.chat.completions.create({
+        messages: transformMessages(options.messages),
+        model: options.model || this.model || "gpt-3.5-turbo",
+        temperature: options.temperature,
+        top_p: options.top_p,
+        max_tokens: options.max_tokens,
+        stream: options.stream,
+        tools: options.tools,
+        stop: options.stop,
+      });
+
+      return completion as unknown as ChatCompletionResponse;
     } catch (error) {
-      return handleError(error);
+      throw handleError(error);
     }
+  }
+
+  getProviders(): Provider[] {
+    return [{
+      id: 1,
+      logo: "openai-logo.png",
+      name: "OpenAI",
+      apiUrl: this.apiEndpoint || "https://api.openai.com/v1",
+      keyAdded: !!this.apiKey,
+      category: 'cloudProviders'
+    }];
   }
 
   async getModels() {
     try {
-      const response = await axios.get(`${this.apiEndpoint}/models`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-      });
-
-      const allModels = response.data.data.map((model: { id: string; provider?: string; type?: string }) => {
-        model.provider = "OpenAI";
-        if (this.embeddingModels.includes(model.id)) {
-          model.type = "embedding";
-        }
-        if (this.chatModels.includes(model.id)) {
-          model.type = "chat";
-        }
-        return model;
-      });
-      return allModels;
+      const response = await this.client.models.list();
+      return response.data
+        .filter(model => this.chatModels.includes(model.id))
+        .map(model => ({
+          id: model.id,
+          name: model.id,
+          provider: "OpenAI",
+          type: "chat"
+        }));
     } catch (error) {
-      return handleError(error);
+      throw handleError(error);
     }
   }
 

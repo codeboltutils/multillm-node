@@ -1,10 +1,20 @@
 import axios from 'axios';
-import type { BaseProvider } from '../../types';
+import { handleError } from '../../utils/errorHandler';
+import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 import parseToolToSystemPrompt, { parseAssistantMessage } from './../../utils/toolParser'
 
-interface Message {
+interface LMStudioMessage {
   role: 'user' | 'assistant' | 'system';
-  content: any;
+  content: string;
+}
+
+function transformMessages(messages: ChatMessage[]): LMStudioMessage[] {
+  return messages.map(message => ({
+    role: message.role === 'function' || message.role === 'tool' ? 'user' : 
+          message.role === 'assistant' ? 'assistant' : 
+          message.role === 'system' ? 'system' : 'user',
+    content: message.content || ''
+  }));
 }
 
 interface ToolFunction {
@@ -26,6 +36,7 @@ interface Tool {
   type: string;
   function: ToolFunction;
 }
+
 interface CompletionOptions {
   model: string;
   messages: Message[];
@@ -57,65 +68,108 @@ interface Model {
   provider?: string;
 }
 
-class LMStudio implements BaseProvider {
-  private embeddingModels: string[];
+class LMStudio implements LLMProvider {
+  private defaultModels: string[];
   public model: string | null;
   public device_map: string | null;
   public apiKey: null = null;
-  public apiEndpoint: string;
+  public apiEndpoint: string | null;
+  public provider: "lmstudio";
 
   constructor(
     model: string | null = null,
     device_map: string | null = null,
+    apiKey: string | null = null,
     apiEndpoint: string | null = null
   ) {
-    this.model = model;
+    this.defaultModels = ["local-model"];
+    this.model = model || "local-model";
     this.device_map = device_map;
-    this.embeddingModels = [];
+    this.apiKey = null; // LMStudio doesn't use API keys
     this.apiEndpoint = apiEndpoint ?? "http://localhost:1234/v1";
+    this.provider = "lmstudio";
   }
 
-  async createCompletion(options: CompletionOptions): Promise<CompletionResponse | Error> {
+  async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      console.log("The options are:"+JSON.stringify(options));
-      const response = await axios.post<CompletionResponse>(
+      const response = await axios.post(
         `${this.apiEndpoint}/chat/completions`,
         {
-          model: options.model,
-          messages: options.tools ? parseToolToSystemPrompt(options.messages, options.tools) : options.messages
+          model: options.model || this.model || "local-model",
+          messages: transformMessages(options.messages),
+          temperature: options.temperature,
+          max_tokens: options.max_tokens,
+          top_p: options.top_p,
+          stream: options.stream,
+          stop: options.stop
         },
         {
           headers: {
-            "Content-Type": "application/json",
-          },
+            "Content-Type": "application/json"
+          }
         }
       );
-      response.data.choices = parseAssistantMessage (response.data.choices[0].message.content,options.tools)
-      return response.data;
+
+      return {
+        id: `lmstudio-${Date.now()}`,
+        object: 'chat.completion',
+        created: Date.now(),
+        model: options.model || this.model || "local-model",
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: response.data.choices[0].message.content
+          },
+          finish_reason: response.data.choices[0].finish_reason || 'stop'
+        }],
+        usage: response.data.usage || {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0
+        }
+      };
     } catch (error) {
-      console.error("Error generating completion:", error);
-      return error as Error;
+      throw handleError(error);
     }
   }
 
-  async getModels(): Promise<Model[] | Error> {
+  getProviders(): Provider[] {
+    return [{
+      id: 10,
+      logo: "lmstudio-logo.png",
+      name: "LM Studio",
+      apiUrl: this.apiEndpoint || "http://localhost:1234/v1",
+      keyAdded: true, // No API key needed
+      category: 'localProviders'
+    }];
+  }
+
+  async getModels() {
     try {
-      const response = await axios.get<{ data: Model[] }>(
+      const response = await axios.get(
         `${this.apiEndpoint}/models`,
         {
           headers: {
-            "Content-Type": "application/json",
-          },
+            "Content-Type": "application/json"
+          }
         }
       );
-      const allModels = response.data.data.map((model) => ({
-        ...model,
-        provider: "Local Provider",
+
+      return response.data.data.map((model: any) => ({
+        id: model.id,
+        name: model.id,
+        provider: "LM Studio",
+        type: "chat"
       }));
-      return allModels;
     } catch (error) {
-      console.error("Error fetching models:", error);
-      return error as Error;
+      // If we can't fetch models, return default models
+      return this.defaultModels.map(modelId => ({
+        id: modelId,
+        name: modelId,
+        provider: "LM Studio",
+        type: "chat"
+      }));
     }
   }
 }

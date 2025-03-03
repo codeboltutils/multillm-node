@@ -33,10 +33,60 @@ export interface BaseProvider {
   apiEndpoint: string | null;
 }
 
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant' | 'function' | 'tool';
+  content: string | null;
+  name?: string;
+  tool_calls?: Array<{
+    id: string;
+    type: 'function';
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
+  tool_call_id?: string;
+}
+
+export interface ChatCompletionOptions {
+  messages: ChatMessage[];
+  model?: string;
+  temperature?: number;
+  top_p?: number;
+  max_tokens?: number;
+  stream?: boolean;
+  tools?: Array<{
+    type: 'function';
+    function: {
+      name: string;
+      description: string;
+      parameters: Record<string, any>;
+    };
+  }>;
+  stop?: string | string[];
+}
+
+export interface ChatCompletionResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: ChatMessage;
+    finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | null;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
 export interface LLMProvider extends BaseProvider {
   provider?: SupportedProvider;
   getProviders?(): Provider[];
-  createCompletion(options: any): Promise<any>;
+  createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse>;
   getModels(): Promise<any>;
 } 
 

@@ -1,23 +1,28 @@
-import { HfInference } from '@huggingface/inference';
-import { handleError } from '../../utils/errorHandler';
-import type { BaseProvider } from '../../types';
 import axios from 'axios';
+import { handleError } from '../../utils/errorHandler';
+import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 
-interface HuggingFaceOptions extends BaseProvider {
-  model: string | null;
-  device_map: string | null;
-  apiKey: string | null;
-  apiEndpoint: string | null;
+interface HuggingFaceMessage {
+  role: string;
+  content: string;
 }
 
-class HuggingFace implements BaseProvider {
-  private options: HuggingFaceOptions;
-  private client: HfInference;
-  private chatModels: string[];
+function transformMessages(messages: ChatMessage[]): string {
+  // Convert messages to a format that HuggingFace models expect
+  return messages.map(message => {
+    const role = message.role === 'assistant' ? 'Assistant' : 
+                message.role === 'system' ? 'System' : 'Human';
+    return `${role}: ${message.content}`;
+  }).join('\n') + '\nAssistant:';
+}
+
+class HuggingFace implements LLMProvider {
+  private defaultModels: string[];
   public model: string | null;
   public device_map: string | null;
   public apiKey: string | null;
   public apiEndpoint: string | null;
+  public provider: "huggingface";
 
   constructor(
     model: string | null = null,
@@ -25,101 +30,91 @@ class HuggingFace implements BaseProvider {
     apiKey: string | null = null,
     apiEndpoint: string | null = null
   ) {
-    this.chatModels = [
+    this.defaultModels = [
       "meta-llama/Llama-2-70b-chat-hf",
       "mistralai/Mixtral-8x7B-Instruct-v0.1",
       "tiiuae/falcon-180B-chat",
-      "codellama/CodeLlama-34b-Instruct-hf",
-      "google/gemma-7b-it"
+      "HuggingFaceH4/zephyr-7b-beta",
+      "google/gemma-7b-it",
+      "01-ai/Yi-34B-Chat"
     ];
-    this.model = model || "meta-llama/Llama-2-70b-chat-hf";
+    this.model = model || "mistralai/Mixtral-8x7B-Instruct-v0.1";
     this.device_map = device_map;
     this.apiKey = apiKey;
-    this.apiEndpoint = apiEndpoint || "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/huggingface";
-    
-    this.options = { model: this.model, device_map, apiKey, apiEndpoint: this.apiEndpoint };
-    this.client = new HfInference(apiKey || '');
+    this.apiEndpoint = apiEndpoint ?? "https://api-inference.huggingface.co/models";
+    this.provider = "huggingface";
   }
 
-  async createCompletion(options: any) {
+  async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      const messages = options.messages.map((msg: any) => ({
-        role: msg.role,
-        content: msg.content
-      }));
+      const modelId = options.model || this.model || "mistralai/Mixtral-8x7B-Instruct-v0.1";
+      const prompt = transformMessages(options.messages);
 
-      try {
-        const response = await axios.post(
-          `${this.apiEndpoint}/models/${this.model}/text-generation`,
-          {
-            inputs: this.formatPrompt(messages),
-            parameters: {
-              max_new_tokens: options.max_tokens || 2000,
-              temperature: options.temperature || 0.7,
-              top_p: options.top_p || 0.95,
-              return_full_text: false
-            }
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${this.apiKey}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-
-        return {
-          choices: [{
-            message: {
-              role: 'assistant',
-              content: response.data.generated_text
-            }
-          }]
-        };
-      } catch (error) {
-        console.warn('Cloudflare Gateway failed, falling back to direct HuggingFace API:', error);
-        const response = await this.client.textGeneration({
-          model: this.model || "meta-llama/Llama-2-70b-chat-hf",
-          inputs: this.formatPrompt(messages),
+      const response = await axios.post(
+        `${this.apiEndpoint}/${modelId}`,
+        {
+          inputs: prompt,
           parameters: {
-            max_new_tokens: options.max_tokens || 2000,
-            temperature: options.temperature || 0.7,
-            top_p: options.top_p || 0.95,
+            temperature: options.temperature,
+            max_new_tokens: options.max_tokens,
+            top_p: options.top_p,
+            stop: options.stop,
             return_full_text: false
           }
-        });
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${this.apiKey}`
+          }
+        }
+      );
 
-        return {
-          choices: [{
-            message: {
-              role: 'assistant',
-              content: response.generated_text
-            }
-          }]
-        };
-      }
+      // Extract the generated text from the response
+      const generatedText = response.data[0]?.generated_text || '';
+
+      return {
+        id: `hf-${Date.now()}`,
+        object: 'chat.completion',
+        created: Date.now(),
+        model: modelId,
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: generatedText.trim()
+          },
+          finish_reason: 'stop'
+        }],
+        usage: {
+          prompt_tokens: response.data.usage?.prompt_tokens || 0,
+          completion_tokens: response.data.usage?.completion_tokens || 0,
+          total_tokens: (response.data.usage?.prompt_tokens || 0) + (response.data.usage?.completion_tokens || 0)
+        }
+      };
     } catch (error) {
-      return handleError(error);
+      throw handleError(error);
     }
   }
 
-  private formatPrompt(messages: any[]): string {
-    return messages.map(msg => {
-      const role = msg.role === 'assistant' ? 'Assistant' : 'Human';
-      return `${role}: ${msg.content}`;
-    }).join('\\n') + '\\nAssistant:';
+  getProviders(): Provider[] {
+    return [{
+      id: 9,
+      logo: "huggingface-logo.png",
+      name: "Hugging Face",
+      apiUrl: this.apiEndpoint || "https://api-inference.huggingface.co/models",
+      keyAdded: !!this.apiKey,
+      category: 'cloudProviders'
+    }];
   }
 
   async getModels() {
-    try {
-      return this.chatModels.map(modelId => ({
-        id: modelId,
-        provider: "HuggingFace",
-        type: "chat"
-      }));
-    } catch (error) {
-      return handleError(error);
-    }
+    return this.defaultModels.map(modelId => ({
+      id: modelId,
+      name: modelId,
+      provider: "HuggingFace",
+      type: "chat"
+    }));
   }
 }
 

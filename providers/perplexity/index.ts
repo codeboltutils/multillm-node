@@ -1,39 +1,28 @@
 import axios from 'axios';
-import type { BaseProvider } from '../../types';
-import perplexityModels, { PerplexityModel } from './models';
+import { handleError } from '../../utils/errorHandler';
+import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 
-interface Message {
+interface PerplexityMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
-interface CompletionOptions {
-  model: string;
-  messages: Message[];
+function transformMessages(messages: ChatMessage[]): PerplexityMessage[] {
+  return messages.map(message => ({
+    role: message.role === 'function' || message.role === 'tool' ? 'user' : 
+          message.role === 'assistant' ? 'assistant' : 
+          message.role === 'system' ? 'system' : 'user',
+    content: message.content || ''
+  }));
 }
 
-interface CompletionResponse {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  choices: Array<{
-    index: number;
-    message: Message;
-    finish_reason: string;
-  }>;
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
-
-class Perplexity implements BaseProvider {
+class Perplexity implements LLMProvider {
+  private defaultModels: string[];
   public model: string | null;
   public device_map: string | null;
   public apiKey: string | null;
   public apiEndpoint: string | null;
+  public provider: "perplexity";
 
   constructor(
     model: string | null = null,
@@ -41,43 +30,81 @@ class Perplexity implements BaseProvider {
     apiKey: string | null = null,
     apiEndpoint: string | null = null
   ) {
-    this.model = model;
+    this.defaultModels = [
+      "pplx-7b-online",
+      "pplx-70b-online",
+      "pplx-7b-chat",
+      "pplx-70b-chat",
+      "codellama-34b-instruct",
+      "mistral-7b-instruct",
+      "mixtral-8x7b-instruct"
+    ];
+    this.model = model || "pplx-7b-chat";
     this.device_map = device_map;
     this.apiKey = apiKey;
-    this.apiEndpoint = apiEndpoint ?? 'https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/perplexity-ai';
+    this.apiEndpoint = apiEndpoint ?? "https://api.perplexity.ai";
+    this.provider = "perplexity";
   }
 
-  async createCompletion(options: CompletionOptions): Promise<CompletionResponse | Error> {
+  async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      console.log(options.messages);
-      const response = await axios.post<CompletionResponse>(
+      const response = await axios.post(
         `${this.apiEndpoint}/chat/completions`,
         {
-          model: options.model,
-          messages: options.messages,
+          model: options.model || this.model || "pplx-7b-chat",
+          messages: transformMessages(options.messages),
+          temperature: options.temperature,
+          max_tokens: options.max_tokens,
+          top_p: options.top_p,
+          stream: options.stream,
+          stop: options.stop
         },
         {
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.apiKey}`,
-          },
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${this.apiKey}`
+          }
         }
       );
 
-      return response.data;
+      return {
+        id: response.data.id,
+        object: 'chat.completion',
+        created: Date.now(),
+        model: response.data.model,
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: response.data.choices[0].message.content
+          },
+          finish_reason: response.data.choices[0].finish_reason
+        }],
+        usage: response.data.usage
+      };
     } catch (error) {
-      console.error('Error generating completion:', error);
-      return error as Error;
+      throw handleError(error);
     }
   }
 
-  async getModels(): Promise<PerplexityModel[]> {
-    try {
-      return perplexityModels;
-    } catch (error) {
-      console.error('Error fetching models:', error);
-      return [];
-    }
+  getProviders(): Provider[] {
+    return [{
+      id: 6,
+      logo: "perplexity-logo.png",
+      name: "Perplexity AI",
+      apiUrl: this.apiEndpoint || "https://api.perplexity.ai",
+      keyAdded: !!this.apiKey,
+      category: 'cloudProviders'
+    }];
+  }
+
+  async getModels() {
+    return this.defaultModels.map(modelId => ({
+      id: modelId,
+      name: modelId,
+      provider: "Perplexity",
+      type: "chat"
+    }));
   }
 }
 
