@@ -39,3 +39,18 @@ export interface LLMProvider extends BaseProvider {
   createCompletion(options: any): Promise<any>;
   getModels(): Promise<any>;
 } 
+
+export type ToolSchema = {
+  name: string;
+  description: string;
+  input_schema: {
+    type: "object";
+    properties: {
+      [key: string]: {
+        type: string;
+        description: string;
+      };
+    };
+    required: string[];
+  };
+};
