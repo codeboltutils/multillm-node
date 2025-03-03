@@ -146,7 +146,7 @@ class LMStudio implements LLMProvider {
     return [{
       id: 10,
       logo: "lmstudio-logo.png",
-      name: "LM Studio",
+      name: "LMStudio",
       apiUrl: this.apiEndpoint || "http://localhost:1234/v1",
       keyAdded: true, // No API key needed
       category: 'localProviders'
