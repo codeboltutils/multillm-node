@@ -3,10 +3,45 @@ import type { Message, MessageParam, ContentBlock, TextBlock, Tool } from '@anth
 import type { BaseProvider, ToolSchema, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 
 function transformMessages(messages: ChatMessage[]): MessageParam[] {
-  return messages.map(message => ({
-    role: message.role as 'assistant' | 'user',
-    content: message.content || ''
-  }));
+  return messages.map(message => {
+    if (message.tool_calls && Array.isArray(message.tool_calls)) {
+      return {
+        role: 'assistant' as const,
+        content: [
+          ...(message.content ? [{
+            type: 'text' as const,
+            text: message.content,
+          }] : []),
+          ...message.tool_calls.map(toolCall => ({
+            type: 'tool_use' as const,
+            id: toolCall.id,
+            name: toolCall.function.name,
+            input: JSON.parse(toolCall.function.arguments)
+          }))
+        ]
+      };
+    }
+    
+    return {
+      role: message.role as 'assistant' | 'user',
+      content: typeof message.content === 'string' 
+        ? [{ type: 'text' as const, text: message.content }]
+        : message.content || []
+    };
+  });
+}
+
+function convertFunctionFormat(array: any[]): ToolSchema[] {
+  return array.map((item: { type: string; function?: { name: string; description: string; parameters: any } }) => {
+    if (item.type === "function" && item.function) {
+      return {
+        name: item.function.name,
+        description: item.function.description,
+        input_schema: item.function.parameters
+      } as ToolSchema;
+    }
+    return null;
+  }).filter(Boolean) as ToolSchema[];
 }
 
 interface AnthropicModelInfo {
@@ -29,11 +64,11 @@ interface AnthropicCreateParams {
   model: string;
 }
 
-const anthropicDefaultModelId = "claude-3-7-sonnet-20250219";
+const anthropicDefaultModelId = "claude-3-sonnet-20240229";
 
 const anthropicModels: AnthropicModels = {
-  "claude-3-7-sonnet-20250219": {
-    maxTokens: 8192,
+  "claude-3-sonnet-20240229": {
+    maxTokens: 4096,
     contextWindow: 200_000,
     supportsImages: true,
     supportsPromptCache: true,
@@ -72,29 +107,26 @@ interface AnthropicResponse {
   stop_reason: string;
   usage: {
     input_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
+    output_tokens: number;
   };
 }
 
-interface OpenAITool {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, any>;
-  };
-}
-
-function convertToolToAnthropicFormat(tool: OpenAITool): Tool {
+function convertToolToAnthropicFormat(tool: any): Tool {
+  if (tool.type === 'function') {
+    return {
+      name: tool.function.name,
+      description: tool.function.description,
+      input_schema: {
+        type: 'object',
+        properties: tool.function.parameters.properties || {},
+        required: tool.function.parameters.required || []
+      }
+    };
+  }
   return {
-    name: tool.function.name,
-    description: tool.function.description,
-    input_schema: {
-      type: 'object',
-      properties: tool.function.parameters.properties || {},
-      required: tool.function.parameters.required || []
-    }
+    name: tool.name,
+    description: tool.description,
+    input_schema: tool.input_schema
   };
 }
 
@@ -120,49 +152,47 @@ class AnthropicAI implements LLMProvider {
     });
   }
 
-  private convertToOpenAIFormat(anthropicResponse: AnthropicResponse): ChatCompletionResponse {
+  private convertToOpenAIFormat(response: Message): ChatCompletionResponse {
     let content = '';
     const toolCalls: ChatMessage['tool_calls'] = [];
 
-    if (Array.isArray(anthropicResponse.content)) {
-      anthropicResponse.content.forEach((item) => {
+    if (Array.isArray(response.content)) {
+      response.content.forEach((item) => {
         if (item.type === 'text' && 'text' in item) {
           content += item.text;
-        } else if (item.type === 'tool_use' && 'tool_name' in item && 'tool_input' in item) {
+        } else if (item.type === 'tool_use') {
           toolCalls.push({
-            id: `tool_${Date.now()}`,
+            id: item.id || `tool_${Date.now()}`,
             type: 'function',
             function: {
-              name: item.tool_name as string,
-              arguments: JSON.stringify(item.tool_input)
+              name: item.name,
+              arguments: JSON.stringify(item.input)
             }
           });
         }
       });
     }
 
-    const message: ChatMessage = {
-      role: 'assistant',
-      content: content,
-      tool_calls: toolCalls.length > 0 ? toolCalls : undefined
-    };
-
     return {
-      id: anthropicResponse.id,
+      id: response.id,
       object: 'chat.completion',
       created: Math.floor(Date.now() / 1000),
       model: this.model || anthropicDefaultModelId,
       choices: [
         {
           index: 0,
-          message,
-          finish_reason: anthropicResponse.stop_reason === 'end_turn' ? 'stop' : 'length'
+          message: {
+            role: 'assistant',
+            content: content,
+            tool_calls: toolCalls.length > 0 ? toolCalls : undefined
+          },
+          finish_reason: response.stop_reason === 'end_turn' ? 'stop' : 'length'
         }
       ],
       usage: {
-        prompt_tokens: anthropicResponse.usage.input_tokens,
-        completion_tokens: anthropicResponse.usage.completion_tokens,
-        total_tokens: anthropicResponse.usage.total_tokens
+        prompt_tokens: response.usage.input_tokens,
+        completion_tokens: response.usage.output_tokens,
+        total_tokens: response.usage.input_tokens + response.usage.output_tokens
       }
     };
   }
@@ -170,7 +200,7 @@ class AnthropicAI implements LLMProvider {
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
       const messages = transformMessages(options.messages);
-
+      
       const response = await this.client.messages.create({
         model: options.model || this.model || anthropicDefaultModelId,
         max_tokens: options.max_tokens || 1024,
@@ -180,20 +210,7 @@ class AnthropicAI implements LLMProvider {
         tools: options.tools?.map(convertToolToAnthropicFormat)
       });
 
-      const anthropicResponse: AnthropicResponse = {
-        id: response.id,
-        model: response.model,
-        role: response.role,
-        content: response.content,
-        stop_reason: response.stop_reason || 'end_turn',
-        usage: {
-          input_tokens: response.usage.input_tokens,
-          completion_tokens: response.usage.output_tokens,
-          total_tokens: response.usage.input_tokens + response.usage.output_tokens
-        }
-      };
-
-      return this.convertToOpenAIFormat(anthropicResponse);
+      return this.convertToOpenAIFormat(response);
     } catch (error) {
       throw error;
     }
