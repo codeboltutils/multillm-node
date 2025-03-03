@@ -2,6 +2,8 @@ import Replicate from 'replicate';
 import { handleError } from '../../utils/errorHandler';
 import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 
+const DEFAULT_MODEL = 'meta/llama-2-70b-chat:02e509c789964a7ea8736978a43525956ef40397be9033abf9fd2badfe68c9e3' as const;
+
 interface ReplicateMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -15,9 +17,8 @@ function transformMessages(messages: ChatMessage[]): string {
   }).join('\n') + '\nAssistant:';
 }
 
-class ReplicateHandler implements LLMProvider {
+class ReplicateAI implements LLMProvider {
   private client: Replicate;
-  private defaultModels: string[];
   public model: string | null;
   public device_map: string | null;
   public apiKey: string | null;
@@ -30,49 +31,62 @@ class ReplicateHandler implements LLMProvider {
     apiKey: string | null = null,
     apiEndpoint: string | null = null
   ) {
-    this.defaultModels = [
-      "meta/llama-2-70b-chat:latest",
-      "mistralai/mixtral-8x7b-instruct-v0.1",
-      "01-ai/yi-34b-chat:latest",
-      "anthropic/claude-3-sonnet:latest"
-    ];
-    this.model = model || "meta/llama-2-70b-chat:latest";
+    this.model = model;
     this.device_map = device_map;
     this.apiKey = apiKey;
     this.apiEndpoint = apiEndpoint;
     this.provider = "replicate";
-    this.client = new Replicate({ auth: apiKey || '' });
+    this.client = new Replicate({
+      auth: this.apiKey || '',
+    });
+  }
+
+  private formatMessages(messages: ChatMessage[]): string {
+    return messages.map(msg => {
+      if (msg.role === 'system') {
+        return `System: ${msg.content}`;
+      } else if (msg.role === 'user') {
+        return `Human: ${msg.content}`;
+      } else if (msg.role === 'assistant') {
+        return `Assistant: ${msg.content}`;
+      }
+      return msg.content || '';
+    }).join('\n');
   }
 
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      const modelId = options.model || this.model || "meta/llama-2-70b-chat:latest";
+      const prompt = this.formatMessages(options.messages);
+      const modelId = (this.model || DEFAULT_MODEL) as `${string}/${string}:${string}`;
       const output = await this.client.run(
-        modelId as `${string}/${string}:${string}`,
+        modelId,
         {
           input: {
-            prompt: transformMessages(options.messages),
-            max_new_tokens: options.max_tokens || 1024,
-            temperature: options.temperature || 0.7,
-            top_p: options.top_p || 1,
-            stop_sequences: options.stop
+            prompt,
+            temperature: options.temperature,
+            max_tokens: options.max_tokens,
+            top_p: options.top_p,
           }
         }
       );
 
+      const content = typeof output === 'string' ? output : Array.isArray(output) ? output.join('') : '';
+
       return {
-        id: `replicate-${Date.now()}`,
+        id: 'replicate-' + Date.now(),
         object: 'chat.completion',
-        created: Date.now(),
-        model: modelId,
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: typeof output === 'string' ? output : output.join('')
-          },
-          finish_reason: 'stop'
-        }],
+        created: Math.floor(Date.now() / 1000),
+        model: modelId.split(':')[0],
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content,
+            },
+            finish_reason: 'stop'
+          }
+        ],
         usage: {
           prompt_tokens: 0,
           completion_tokens: 0,
@@ -80,7 +94,7 @@ class ReplicateHandler implements LLMProvider {
         }
       };
     } catch (error) {
-      throw handleError(error);
+      throw error;
     }
   }
 
@@ -95,14 +109,24 @@ class ReplicateHandler implements LLMProvider {
     }];
   }
 
-  async getModels() {
-    return this.defaultModels.map(modelId => ({
-      id: modelId,
-      name: modelId,
-      provider: "Replicate",
-      type: "chat"
-    }));
+  async getModels(): Promise<any> {
+    return [
+      {
+        id: 'meta/llama-2-70b-chat',
+        object: 'model',
+        created: 1677610602,
+        owned_by: 'meta',
+        provider: 'Replicate'
+      },
+      {
+        id: 'meta/llama-2-13b-chat',
+        object: 'model',
+        created: 1677610602,
+        owned_by: 'meta',
+        provider: 'Replicate'
+      }
+    ];
   }
 }
 
-export default ReplicateHandler; 
+export default ReplicateAI; 

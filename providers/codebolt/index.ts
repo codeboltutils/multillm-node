@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { handleError } from '../../utils/errorHandler';
-import type { BaseProvider } from '../../types';
+import type { BaseProvider, ChatCompletionOptions, ChatCompletionResponse, LLMProvider } from '../../types';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -53,7 +53,7 @@ interface EmbeddingResponse {
   };
 }
 
-class CodeBoltAI implements BaseProvider {
+class CodeBoltAI implements LLMProvider {
   private embeddingModels: string[];
   public model: string | null;
   public device_map: string | null;
@@ -73,10 +73,10 @@ class CodeBoltAI implements BaseProvider {
     this.embeddingModels = ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"];
   }
 
-  async createCompletion(options: CompletionOptions): Promise<CompletionResponse | { error: string }> {
+  async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
       console.log(options.messages);
-      const response = await axios.post<CompletionResponse>(
+      const response = await axios.post<ChatCompletionResponse>(
         `${this.apiEndpoint}/chat/completions`,
         options,
         {
@@ -87,15 +87,28 @@ class CodeBoltAI implements BaseProvider {
         }
       );
 
-      return response.data;
+      // Transform the response to match ChatCompletionResponse
+      const transformedResponse: ChatCompletionResponse = {
+        ...response.data,
+        choices: response.data.choices.map(choice => ({
+          ...choice,
+          message: {
+            ...choice.message,
+            content: choice.message.content || null
+          },
+          finish_reason: choice.finish_reason as "stop" | "length" | "tool_calls" | "content_filter" | null
+        }))
+      };
+
+      return transformedResponse;
     } catch (error) {
-      return handleError(error);
+      throw error;
     }
   }
 
-  async getModels(): Promise<Model[] | { error: string }> {
+  async getModels(): Promise<any> {
     try {
-      const response = await axios.get<{ data: Model[] }>(
+      const response = await axios.get(
         `${this.apiEndpoint}/models`,
         {
           headers: {
@@ -104,20 +117,20 @@ class CodeBoltAI implements BaseProvider {
           },
         }
       );
-      const allModels = response.data.data.map((model) => ({
+      const allModels = response.data.data.map((model: any) => ({
         ...model,
         provider: "Codebolt",
         type: this.embeddingModels.includes(model.id) ? "embedding" : undefined,
       }));
       return allModels;
     } catch (error) {
-      return handleError(error);
+      throw error;
     }
   }
 
-  async createEmbedding(input: string | string[], model: string): Promise<EmbeddingResponse | { error: string }> {
+  async createEmbedding(input: string | string[], model: string): Promise<any> {
     try {
-      const response = await axios.post<EmbeddingResponse>(
+      const response = await axios.post(
         `${this.apiEndpoint}/embeddings`,
         {
           input,
@@ -133,7 +146,7 @@ class CodeBoltAI implements BaseProvider {
 
       return response.data;
     } catch (error) {
-      return handleError(error);
+      throw error;
     }
   }
 }

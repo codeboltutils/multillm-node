@@ -4,7 +4,7 @@ import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionRe
 import parseToolToSystemPrompt, { parseAssistantMessage } from './../../utils/toolParser'
 
 interface LMStudioMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: string;
   content: string;
 }
 
@@ -39,21 +39,19 @@ interface Tool {
 
 interface CompletionOptions {
   model: string;
-  messages: Message[];
+  messages: ChatMessage[];
   tools: Tool[]
 }
 
-interface CompletionResponse {
+type FinishReason = 'stop' | 'length' | 'tool_calls' | 'content_filter' | null;
+
+interface LMStudioResponse {
   id: string;
-  object: string;
-  created: number;
-  model: string;
   choices: Array<{
-    index: number;
-    message: Message;
+    message: LMStudioMessage;
     finish_reason: string;
   }>;
-  usage: {
+  usage?: {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
@@ -72,57 +70,67 @@ class LMStudio implements LLMProvider {
   private defaultModels: string[];
   public model: string | null;
   public device_map: string | null;
-  public apiKey: null = null;
+  public apiKey: string | null;
   public apiEndpoint: string | null;
   public provider: "lmstudio";
 
   constructor(
     model: string | null = null,
     device_map: string | null = null,
-    apiKey: string | null = null,
     apiEndpoint: string | null = null
   ) {
     this.defaultModels = ["local-model"];
-    this.model = model || "local-model";
+    this.model = model;
     this.device_map = device_map;
-    this.apiKey = null; // LMStudio doesn't use API keys
-    this.apiEndpoint = apiEndpoint ?? "http://localhost:1234/v1";
+    this.apiKey = null;
+    this.apiEndpoint = apiEndpoint ?? 'http://localhost:1234/v1';
     this.provider = "lmstudio";
+  }
+
+  private normalizeFinishReason(reason: string): 'stop' | 'length' | 'tool_calls' | 'content_filter' | null {
+    switch (reason) {
+      case 'stop':
+      case 'length':
+      case 'tool_calls':
+      case 'content_filter':
+        return reason;
+      default:
+        return 'stop';
+    }
   }
 
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      const response = await axios.post(
+      const response = await axios.post<LMStudioResponse>(
         `${this.apiEndpoint}/chat/completions`,
         {
-          model: options.model || this.model || "local-model",
-          messages: transformMessages(options.messages),
-          temperature: options.temperature,
-          max_tokens: options.max_tokens,
-          top_p: options.top_p,
-          stream: options.stream,
-          stop: options.stop
+          ...options,
+          model: options.model || this.model || 'local-model',
         },
         {
           headers: {
-            "Content-Type": "application/json"
-          }
+            'Content-Type': 'application/json',
+          },
         }
       );
 
+      const message: ChatMessage = {
+        role: 'assistant',
+        content: response.data.choices[0].message.content,
+      };
+
       return {
-        id: `lmstudio-${Date.now()}`,
+        id: response.data.id || 'chat-' + Date.now(),
         object: 'chat.completion',
-        created: Date.now(),
-        model: options.model || this.model || "local-model",
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: response.data.choices[0].message.content
-          },
-          finish_reason: response.data.choices[0].finish_reason || 'stop'
-        }],
+        created: Math.floor(Date.now() / 1000),
+        model: this.model || 'local-model',
+        choices: [
+          {
+            index: 0,
+            message,
+            finish_reason: this.normalizeFinishReason(response.data.choices[0].finish_reason)
+          }
+        ],
         usage: response.data.usage || {
           prompt_tokens: 0,
           completion_tokens: 0,
@@ -130,7 +138,7 @@ class LMStudio implements LLMProvider {
         }
       };
     } catch (error) {
-      throw handleError(error);
+      throw error;
     }
   }
 
@@ -145,31 +153,19 @@ class LMStudio implements LLMProvider {
     }];
   }
 
-  async getModels() {
+  async getModels(): Promise<any> {
     try {
-      const response = await axios.get(
-        `${this.apiEndpoint}/models`,
-        {
-          headers: {
-            "Content-Type": "application/json"
-          }
-        }
-      );
-
+      const response = await axios.get(`${this.apiEndpoint}/models`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       return response.data.data.map((model: any) => ({
-        id: model.id,
-        name: model.id,
-        provider: "LM Studio",
-        type: "chat"
+        ...model,
+        provider: 'LMStudio'
       }));
     } catch (error) {
-      // If we can't fetch models, return default models
-      return this.defaultModels.map(modelId => ({
-        id: modelId,
-        name: modelId,
-        provider: "LM Studio",
-        type: "chat"
-      }));
+      throw error;
     }
   }
 }
