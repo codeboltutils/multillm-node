@@ -19,21 +19,14 @@ export class CloudflareAIProvider implements LLMProvider {
       console.log("this.apiEndpoint",this.apiEndpoint)
       console.log("request")
       console.log({
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: options.messages.map(msg => ({
-            role: msg.role,
-            content: msg.content || '',
-          })),
-          stream: false,
-        }),
+        model: this.model,
+        messages: options.messages.map(msg => ({
+          role: msg.role,
+          content: Array.isArray(msg.content) ? msg.content.join(' ') : (msg.content || ''),
+        })),
+        stream: false,
       })
-      const response = await fetch(`${this.apiEndpoint}`, {
+      const response = await fetch(`${this.apiEndpoint}/${this.model}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -43,7 +36,7 @@ export class CloudflareAIProvider implements LLMProvider {
           model: this.model,
           messages: options.messages.map(msg => ({
             role: msg.role,
-            content: msg.content || '',
+            content: Array.isArray(msg.content) ? msg.content.join(' ') : (msg.content || ''),
           })),
           stream: false,
         }),
@@ -55,7 +48,8 @@ export class CloudflareAIProvider implements LLMProvider {
       }
 
       const data = await response.json();
-      
+      console.log("response is ")
+      console.log(data)
       return {
         id: 'cf-' + Date.now(),
         object: 'chat.completion',
@@ -65,16 +59,35 @@ export class CloudflareAIProvider implements LLMProvider {
           index: 0,
           message: {
             role: 'assistant',
-            content: data.response || data.choices?.[0]?.message?.content || '',
+            content: data.result.response || '',
           },
           finish_reason: 'stop',
         }],
-        usage: data.usage || {
+        usage: data.result.usage || {
           prompt_tokens: 0,
           completion_tokens: 0,
           total_tokens: 0,
         },
       };
+      // return {
+      //   id: 'cf-' + Date.now(),
+      //   object: 'chat.completion',
+      //   created: Date.now(),
+      //   model: this.model || '',
+      //   choices: [{
+      //     index: 0,
+      //     message: {
+      //       role: 'assistant',
+      //       content: data.response || data.choices?.[0]?.message?.content || '',
+      //     },
+      //     finish_reason: 'stop',
+      //   }],
+      //   usage: data.usage || {
+      //     prompt_tokens: 0,
+      //     completion_tokens: 0,
+      //     total_tokens: 0,
+      //   },
+      // };
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`CloudflareAI API Error: ${error.message}`);

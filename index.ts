@@ -15,12 +15,8 @@ import ReplicateAI from './providers/replicate/index';
 import Bedrock from './providers/bedrock/index';
 import CloudflareAI from './providers/cloudflare/index';
 import Groq from './providers/groq/index';
-
-
 import Grok from './providers/grok/index';
 import Replicate from './providers/replicate/index';
-
-import Groq from './providers/groq';
 class Multillm implements LLMProvider {
   public provider: SupportedProvider;
   public device_map: string | null;
