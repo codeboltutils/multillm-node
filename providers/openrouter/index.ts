@@ -32,9 +32,9 @@ class OpenRouter implements BaseProvider {
 
   async createCompletion(options: any): Promise<any> {
     try {
-      const { messages, model, temperature, max_tokens, stream, ...rest } = options;
+      const { messages, model, temperature, max_tokens, stream, tools, tool_choice, ...rest } = options;
       
-      const requestBody = {
+      const requestBody: any = {
         messages,
         model: model || this.model,
         temperature: temperature || 0.7,
@@ -42,6 +42,14 @@ class OpenRouter implements BaseProvider {
         stream: stream || false,
         ...rest
       };
+
+      // Add tools and tool_choice if provided
+      if (tools && tools.length > 0) {
+        requestBody.tools = tools;
+        if (tool_choice) {
+          requestBody.tool_choice = tool_choice;
+        }
+      }
 
       const response = await axios.post(
         `${this.apiEndpoint}/chat/completions`,

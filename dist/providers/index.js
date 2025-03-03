@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CodeBolt = exports.LMStudio = exports.Ollama = exports.Grok = exports.Perplexity = exports.Mistral = exports.Replicate = exports.Groq = exports.Gemini = exports.Bedrock = exports.HuggingFace = exports.Anthropic = exports.OpenAI = void 0;
+exports.OpenRouter = exports.CodeBolt = exports.LMStudio = exports.Ollama = exports.Grok = exports.Perplexity = exports.Mistral = exports.Replicate = exports.Groq = exports.Gemini = exports.Bedrock = exports.HuggingFace = exports.Anthropic = exports.OpenAI = void 0;
 var openai_1 = require("./openai");
 Object.defineProperty(exports, "OpenAI", { enumerable: true, get: function () { return __importDefault(openai_1).default; } });
 var anthropic_1 = require("./anthropic");
@@ -30,3 +30,5 @@ var lmstudio_1 = require("./lmstudio");
 Object.defineProperty(exports, "LMStudio", { enumerable: true, get: function () { return __importDefault(lmstudio_1).default; } });
 var codebolt_1 = require("./codebolt");
 Object.defineProperty(exports, "CodeBolt", { enumerable: true, get: function () { return __importDefault(codebolt_1).default; } });
+var openrouter_1 = require("./openrouter");
+Object.defineProperty(exports, "OpenRouter", { enumerable: true, get: function () { return __importDefault(openrouter_1).default; } });

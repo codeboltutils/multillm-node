@@ -12,6 +12,7 @@ const index_5 = __importDefault(require("./providers/lmstudio/index"));
 const index_6 = __importDefault(require("./providers/mistral/index"));
 const index_7 = __importDefault(require("./providers/gemini/index"));
 const index_8 = __importDefault(require("./providers/ollama/index"));
+const index_9 = __importDefault(require("./providers/openrouter/index"));
 class Multillm {
     constructor(provider, model = null, device_map = null, apiKey = null, apiEndpoint = null) {
         this.provider = provider;
@@ -50,6 +51,10 @@ class Multillm {
             }
             case "ollama": {
                 this.instance = new index_8.default(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+                break;
+            }
+            case "openrouter": {
+                this.instance = new index_9.default(this.model, this.device_map, this.apiKey, this.apiEndpoint);
                 break;
             }
             default: {
@@ -131,6 +136,14 @@ class Multillm {
                 apiUrl: "http://localhost:11434",
                 keyAdded: false,
                 category: 'localProviders',
+            },
+            {
+                id: 9,
+                logo: "https://openrouter.ai/favicon.ico",
+                name: "OpenRouter",
+                apiUrl: "https://openrouter.ai/api/v1",
+                keyAdded: false,
+                category: 'cloudProviders',
             }
         ];
     }
