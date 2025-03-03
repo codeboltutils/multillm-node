@@ -25,7 +25,7 @@ class OpenRouter implements BaseProvider {
     this.model = model;
     this.device_map = device_map;
     this.apiKey = apiKey;
-    this.apiEndpoint = apiEndpoint ?? "https://openrouter.ai/api/v1";
+    this.apiEndpoint = apiEndpoint ?? "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/openrouter";
     
     this.options = { model, device_map, apiKey, apiEndpoint: this.apiEndpoint };
   }

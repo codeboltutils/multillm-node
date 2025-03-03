@@ -39,20 +39,24 @@ interface Tool {
 
 interface CompletionOptions {
   model: string;
-  messages: Message[];
-  tools: Tool[],
-  supportTools?: boolean
+  messages: ChatMessage[];
+  tools: Tool[];
+  supportTools?: boolean;
 }
 
 type FinishReason = 'stop' | 'length' | 'tool_calls' | 'content_filter' | null;
 
 interface LMStudioResponse {
   id: string;
+  object: string;
+  created: number;
+  model: string;
   choices: Array<{
-    message: LMStudioMessage;
-    finish_reason: string;
+    index: number;
+    message: ChatMessage;
+    finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | null;
   }>;
-  usage?: {
+  usage: {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
@@ -88,33 +92,10 @@ class LMStudio implements LLMProvider {
     this.provider = "lmstudio";
   }
 
-  async createCompletion(options: CompletionOptions): Promise<CompletionResponse | Error> {
-    try {
-      const response = await axios.post(
-        `${this.apiEndpoint}/chat/completions`,
-        {
-          model: options.model,
-          messages: !options.supportTools ? parseToolToSystemPrompt(options.messages, options.tools) : options.messages
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      if (options.supportTools) {
-        return response.data;
-      }
-      else{
-        response.data.choices = parseAssistantMessage(response.data.choices[0].message.content, options.tools);
-        return response.data;
-      }
-
-   
-    } catch (error) {
-      console.error("Error generating completion:", error);
-      return error as Error;
-    }
+  private normalizeFinishReason(reason: string | null): 'stop' | 'length' | 'tool_calls' | 'content_filter' | null {
+    if (!reason) return null;
+    const validReasons = ['stop', 'length', 'tool_calls', 'content_filter'] as const;
+    return validReasons.includes(reason as any) ? reason as 'stop' | 'length' | 'tool_calls' | 'content_filter' : 'stop';
   }
 
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
@@ -124,6 +105,7 @@ class LMStudio implements LLMProvider {
         {
           ...options,
           model: options.model || this.model || 'local-model',
+          messages: options.messages
         },
         {
           headers: {
@@ -172,19 +154,12 @@ class LMStudio implements LLMProvider {
   }
 
   async getModels(): Promise<any> {
-    try {
-      const response = await axios.get(`${this.apiEndpoint}/models`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      return response.data.data.map((model: any) => ({
-        ...model,
-        provider: 'LMStudio'
-      }));
-    } catch (error) {
-      throw error;
-    }
+    return this.defaultModels.map(modelId => ({
+      id: modelId,
+      name: modelId,
+      provider: 'LMStudio',
+      type: 'chat'
+    }));
   }
 }
 

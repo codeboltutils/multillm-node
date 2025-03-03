@@ -14,8 +14,8 @@ function transformMessages(messages: ChatMessage[]): GeminiMessage[] {
   }));
 }
 
-class Gemini implements LLMProvider {
-  private chatModels: string[];
+export class Gemini implements LLMProvider {
+  private chatModels = ['gemini-2.0-flash', 'gemini-pro', 'gemini-pro-vision'];
   public model: string | null;
   public device_map: string | null;
   public apiKey: string | null;
@@ -28,85 +28,139 @@ class Gemini implements LLMProvider {
     apiKey: string | null = null,
     apiEndpoint: string | null = null
   ) {
-    this.chatModels = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"];
-    this.model = model || "gemini-1.5-flash";
+    this.model = model || 'gemini-2.0-flash';
     this.device_map = device_map;
     this.apiKey = apiKey;
-    this.apiEndpoint = apiEndpoint ?? "https://generativelanguage.googleapis.com/v1";
+    this.apiEndpoint = apiEndpoint ?? 'https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/google-ai-studio';
     this.provider = "gemini";
+  }
+
+  get name(): string {
+    return 'gemini';
+  }
+
+  get id(): number {
+    return 2;
+  }
+
+  get logo(): string {
+    return 'gemini-logo.png';
+  }
+
+  get category(): 'cloudProviders' | 'localProviders' | 'codebolt' {
+    return 'cloudProviders';
+  }
+
+  get keyAdded(): boolean {
+    return !!this.apiKey;
+  }
+
+  private transformToGeminiRequest(options: ChatCompletionOptions) {
+    return {
+      contents: transformMessages(options.messages),
+      safetySettings: [
+        {
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_NONE"
+        }
+      ],
+      generationConfig: {
+        temperature: options.temperature,
+        topP: options.top_p,
+        maxOutputTokens: options.max_tokens,
+        topK: 40,
+        stopSequences: options.stop ? (Array.isArray(options.stop) ? options.stop : [options.stop]) : []
+      }
+    };
+  }
+
+  private transformFromGeminiResponse(response: any, modelName: string): ChatCompletionResponse {
+    return {
+      id: `gemini-${Date.now()}`,
+      object: 'chat.completion',
+      created: Date.now(),
+      model: modelName,
+      choices: [{
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: response.data.candidates[0].content.parts[0].text
+        },
+        finish_reason: 'stop'
+      }],
+      usage: {
+        prompt_tokens: response.data.usageMetadata?.promptTokenCount || 0,
+        completion_tokens: response.data.usageMetadata?.candidatesTokenCount || 0,
+        total_tokens: (response.data.usageMetadata?.promptTokenCount || 0) + (response.data.usageMetadata?.candidatesTokenCount || 0)
+      }
+    };
   }
 
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
-      };
+      if (!this.apiKey) {
+        throw new Error('API key is required for Gemini');
+      }
 
-      const requestBody = {
-        model: options.model || this.model || "gemini-1.5-flash",
-        contents: transformMessages(options.messages),
-        generationConfig: {
-          temperature: options.temperature || 0.7,
-          topP: options.top_p || 1,
-          maxOutputTokens: options.max_tokens || 1024,
+      if (!options.messages || options.messages.length === 0) {
+        throw new Error('At least one message is required');
+      }
+
+      const modelName = options.model || this.model || 'gemini-pro';
+
+      // Validate model name before making the API call
+      if (!this.chatModels.includes(modelName)) {
+        throw new Error(`Model ${modelName} not found. Available models: ${this.chatModels.join(', ')}`);
+      }
+
+      try {
+        const response = await axios.post(
+          `${this.apiEndpoint}/v1/models/${modelName}:generateContent`,
+          this.transformToGeminiRequest(options),
+          {
+            headers: {
+              'x-goog-api-key': this.apiKey,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        return this.transformFromGeminiResponse(response, modelName);
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          if (error.response?.status === 401 || error.response?.status === 403) {
+            throw new Error('Invalid API key');
+          }
+          if (error.response?.status === 404) {
+            throw new Error(`Model ${modelName} not found`);
+          }
+          throw new Error(error.response?.data?.error?.message || error.message);
         }
-      };
-
-      const response = await axios.post(
-        `${this.apiEndpoint}/models/${requestBody.model}:generateContent`, 
-        requestBody,
-        { headers }
-      );
-
-      // Transform Gemini response to standard format
-      return {
-        id: `gemini-${Date.now()}`,
-        object: 'chat.completion',
-        created: Date.now(),
-        model: requestBody.model,
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: response.data.candidates[0].content.parts[0].text
-          },
-          finish_reason: response.data.candidates[0].finishReason || 'stop'
-        }],
-        usage: {
-          prompt_tokens: response.data.usageMetadata?.promptTokenCount || 0,
-          completion_tokens: response.data.usageMetadata?.candidatesTokenCount || 0,
-          total_tokens: (response.data.usageMetadata?.promptTokenCount || 0) + 
-                       (response.data.usageMetadata?.candidatesTokenCount || 0)
-        }
-      };
+        throw error;
+      }
     } catch (error) {
-      throw handleError(error);
+      throw error;
     }
+  }
+
+  async getModels(): Promise<any> {
+    return this.chatModels.map(modelId => ({
+      id: modelId,
+      name: modelId,
+      provider: 'gemini',
+      type: 'chat'
+    }));
   }
 
   getProviders(): Provider[] {
     return [{
-      id: 4,
+      id: 7,
       logo: "gemini-logo.png",
-      name: "Google Gemini",
-      apiUrl: this.apiEndpoint || "https://generativelanguage.googleapis.com/v1",
+      name: "gemini",
+      apiUrl: this.apiEndpoint || "https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/google-ai-studio",
       keyAdded: !!this.apiKey,
       category: 'cloudProviders'
     }];
-  }
-
-  async getModels() {
-    try {
-      return this.chatModels.map(modelId => ({
-        id: modelId,
-        name: modelId,
-        provider: "Gemini",
-        type: "chat"
-      }));
-    } catch (error) {
-      throw handleError(error);
-    }
   }
 }
 
