@@ -158,6 +158,7 @@ class Multillm implements LLMProvider {
         name: "OpenRouter",
         apiUrl: "https://openrouter.ai/api/v1",
         keyAdded: false,
+        key: "",
         category: 'cloudProviders',
       }
     ];

@@ -30,6 +30,10 @@ function transformMessages(messages: ChatMessage[]): MessageParam[] {
   });
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> fc67efa (changes)
 function convertFunctionFormat(array: any[]): ToolSchema[] {
   return array.map((item: { type: string; function?: { name: string; description: string; parameters: any } }) => {
     if (item.type === "function" && item.function) {
@@ -139,7 +143,12 @@ class AnthropicAI implements LLMProvider {
     this.apiKey = apiKey;
     this.apiEndpoint = apiEndpoint;
     this.client = new Anthropic({
+<<<<<<< HEAD
       apiKey: this.apiKey || '',
+=======
+      baseURL: "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/anthropic", //|| "https://api.anthropic.com",
+      apiKey: apiKey ?? undefined,
+>>>>>>> fc67efa (changes)
     });
   }
 
@@ -211,6 +220,7 @@ class AnthropicAI implements LLMProvider {
     try {
       const messages = transformMessages(options.messages);
 
+<<<<<<< HEAD
       const tools: AnthropicTool[] | undefined = options.tools?.map(tool => ({
         type: 'function' as const,
         name: tool.function.name,
@@ -243,6 +253,75 @@ class AnthropicAI implements LLMProvider {
       };
 
       return this.convertToOpenAIFormat(anthropicResponse);
+=======
+              if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
+                return {
+                  ...message,
+                  content:
+                    typeof message.content === "string"
+                      ? [
+                        {
+                          type: "text" as const,
+                          text: message.content,
+                          cache_control: { type: "ephemeral" as const },
+                        },
+                      ]
+                      : (message.content as Array<{ type: string; text: string }>).map((content, contentIndex: number) =>
+                        contentIndex === message.content.length - 1
+                          ? { ...content, cache_control: { type: "ephemeral" as const } }
+                          : content
+                      ),
+                };
+              } else if (message.role !== "system") {
+                return message;
+              }
+            }),
+            tools: convertFunctionFormat(tools) || [],
+            tool_choice: { type: "auto" as const },
+          }
+          console.log("message to claud ai")
+
+          console.log(JSON.stringify(inputMessage));
+          const message = await this.client.beta.promptCaching.messages.create(
+            inputMessage,
+            (() => {
+              switch (modelId) {
+                case "claude-3-7-sonnet-20250219":
+                  return {
+                    headers: {
+                      "anthropic-beta": "prompt-caching-2024-07-31",
+                    },
+                  };
+                case "claude-3-haiku-20240307":
+                  return {
+                    headers: { "anthropic-beta": "prompt-caching-2024-07-31" },
+                  };
+                default:
+                  return undefined;
+              }
+            })()
+          );
+
+          console.log(JSON.stringify(message))
+          return convertToOpenAIFormat(message);
+        }
+        default: {
+          const message = await this.client.messages.create({
+            model: modelId,
+            max_tokens: 1024,// this.getModel().info.maxTokens,
+            temperature: 0.2,
+            system: [{ text: systemPrompt[0].text, type: "text" as const }],
+            messages: messages.map((msg: { content: string | Array<{ type: string; text: string }> }) => ({
+              ...msg,
+              content: typeof msg.content === "string" ? [{ type: "text" as const, text: msg.content }] : msg.content
+            })),
+            tools: convertFunctionFormat(tools) || [],
+            tool_choice: { type: "auto" as const },
+          });
+          return convertToOpenAIFormat(message);
+        }
+      }
+>>>>>>> fc67efa (changes)
     } catch (error) {
       throw error;
     }

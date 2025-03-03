@@ -39,8 +39,9 @@ interface Tool {
 
 interface CompletionOptions {
   model: string;
-  messages: ChatMessage[];
-  tools: Tool[]
+  messages: Message[];
+  tools: Tool[],
+  supportTools?: boolean
 }
 
 type FinishReason = 'stop' | 'length' | 'tool_calls' | 'content_filter' | null;
@@ -87,15 +88,32 @@ class LMStudio implements LLMProvider {
     this.provider = "lmstudio";
   }
 
-  private normalizeFinishReason(reason: string): 'stop' | 'length' | 'tool_calls' | 'content_filter' | null {
-    switch (reason) {
-      case 'stop':
-      case 'length':
-      case 'tool_calls':
-      case 'content_filter':
-        return reason;
-      default:
-        return 'stop';
+  async createCompletion(options: CompletionOptions): Promise<CompletionResponse | Error> {
+    try {
+      const response = await axios.post(
+        `${this.apiEndpoint}/chat/completions`,
+        {
+          model: options.model,
+          messages: !options.supportTools ? parseToolToSystemPrompt(options.messages, options.tools) : options.messages
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (options.supportTools) {
+        return response.data;
+      }
+      else{
+        response.data.choices = parseAssistantMessage(response.data.choices[0].message.content, options.tools);
+        return response.data;
+      }
+
+   
+    } catch (error) {
+      console.error("Error generating completion:", error);
+      return error as Error;
     }
   }
 

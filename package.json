@@ -1,7 +1,6 @@
 {
   "name": "@arrowai/multillm",
   "version": "1.1.47",
-  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -15,21 +14,17 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",
     "@aws-sdk/client-bedrock-runtime": "^3.755.0",
+    "@cloudflare/ai": "^1.2.2",
     "@google/generative-ai": "^0.22.0",
-    "@huggingface/inference": "^3.3.6",
+    "@huggingface/inference": "^3.4.1",
     "@octokit/rest": "^21.1.1",
     "axios": "^1.6.8",
     "groq-sdk": "^0.15.0",
-    "mustache": "^4.2.0",
     "openai": "^4.63.0",
     "replicate": "^1.0.1"
   },
   "devDependencies": {
-    "@types/dotenv": "^6.1.1",
     "@types/node": "^20.17.19",
-    "dotenv": "^16.4.7",
-    "ts-node": "^10.9.2",
-    "ts-node-dev": "^2.0.0",
     "typescript": "^5.7.3"
   }
 }
