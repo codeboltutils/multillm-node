@@ -2,6 +2,15 @@ import axios from 'axios';
 import { handleError } from '../../utils/errorHandler';
 import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
 
+type Tool = {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, any>;
+  };
+};
+
 interface BedrockMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -13,6 +22,19 @@ function transformMessages(messages: ChatMessage[]): BedrockMessage[] {
           message.role === 'assistant' ? 'assistant' : 
           message.role === 'system' ? 'system' : 'user',
     content: message.content || ''
+  }));
+}
+
+function transformTools(tools?: Tool[]): Tool[] | undefined {
+  if (!tools) return undefined;
+  
+  return tools.map(tool => ({
+    type: 'function' as const,
+    function: {
+      name: tool.function.name,
+      description: tool.function.description,
+      parameters: tool.function.parameters
+    }
   }));
 }
 
@@ -59,7 +81,8 @@ class Bedrock implements LLMProvider {
           max_tokens: options.max_tokens || 1024,
           temperature: options.temperature,
           top_p: options.top_p,
-          stop_sequences: options.stop
+          stop_sequences: options.stop,
+          tools: options.tools ? transformTools(options.tools) : undefined
         };
       } else if (modelId.startsWith('meta.')) {
         requestBody = {
@@ -101,8 +124,23 @@ class Bedrock implements LLMProvider {
 
       // Transform response based on model
       let content = '';
+      let toolCalls;
+      
       if (modelId.startsWith('anthropic.')) {
-        content = response.data.content[0].text;
+        const responseContent = response.data.content[0];
+        content = responseContent.text || '';
+        
+        // Handle tool calls in the response
+        if (responseContent.tool_calls) {
+          toolCalls = responseContent.tool_calls.map((call: any) => ({
+            id: `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            type: call.type,
+            function: {
+              name: call.function.name,
+              arguments: call.function.arguments
+            }
+          }));
+        }
       } else if (modelId.startsWith('meta.')) {
         content = response.data.generation;
       } else if (modelId.startsWith('amazon.')) {
@@ -120,9 +158,10 @@ class Bedrock implements LLMProvider {
           index: 0,
           message: {
             role: 'assistant',
-            content: content
+            content: content,
+            tool_calls: toolCalls
           },
-          finish_reason: 'stop'
+          finish_reason: toolCalls ? 'tool_calls' : 'stop'
         }],
         usage: {
           prompt_tokens: response.data.usage?.input_tokens || 0,
