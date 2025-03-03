@@ -11,6 +11,7 @@ import Gemini from './providers/gemini/index';
 import Ollama from './providers/ollama/index';
 import OpenRouter from './providers/openrouter/index';
 import HuggingFace from './providers/huggingface/index';
+import ReplicateAI from './providers/replicate/index';
 
 class Multillm implements LLMProvider {
   public provider: SupportedProvider;
@@ -74,6 +75,10 @@ class Multillm implements LLMProvider {
         this.instance = new HuggingFace(this.model, this.device_map, this.apiKey, this.apiEndpoint);
         break;
       }
+      case "replicate": {
+        this.instance = new ReplicateAI(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+        break;
+      }
       default: {
         console.log(`Unsupported provider: ${this.provider}`);
         throw new Error(`Unsupported provider: ${this.provider}`);
@@ -90,15 +95,15 @@ class Multillm implements LLMProvider {
   }
 
   getProviders(): Provider[] {
-    return [
+    const providers: Provider[] = [
       {
         id: 1,
         logo: "https://avatars.githubusercontent.com/u/166920414?s=200&v=4",
         name: "CodeBolt AI",
         apiUrl: "https://codeboltproxy.arrowai.workers.dev/v1",
         key: "",
-        keyAdded: false,
-        category: 'codebolt'
+        keyAdded: this.provider === 'codeboltai' && !!this.apiKey,
+        category: 'codebolt' as const
       },
       {
         id: 2,
@@ -106,75 +111,85 @@ class Multillm implements LLMProvider {
         name: "Open AI",
         apiUrl: "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/openai",
         key: "",
-        keyAdded: false,
-        category: 'cloudProviders'
+        keyAdded: this.provider === 'openai' && !!this.apiKey,
+        category: 'cloudProviders' as const
       },
       {
         id: 3,
         logo: "https://github.com/lmstudio-ai.png",
         name: "LM Studio",
         apiUrl: "http://localhost:1234/v1",
-        keyAdded: false,
-        category: 'localProviders',
+        keyAdded: this.provider === 'lmstudio' && !!this.apiKey,
+        category: 'localProviders' as const
       },
       {
         id: 4,
         logo: "https://github.com/anthropics.png",
         name: "Anthropic",
         apiUrl: "https://api.anthropic.com",
-        keyAdded: false,
-        category: 'cloudProviders',
+        keyAdded: this.provider === 'anthropic' && !!this.apiKey,
+        category: 'cloudProviders' as const
       },
       {
         id: 5,
         logo: "https://github.com/perplexity-ai.png",
         name: "Perplexity",
         apiUrl: "https://api.perplexity.ai",
-        keyAdded: false,
-        category: 'cloudProviders',
+        keyAdded: this.provider === 'perplexity' && !!this.apiKey,
+        category: 'cloudProviders' as const
       },
       {
         id: 6,
         logo: "https://github.com/mistralai.png",
         name: "Mistral AI",
         apiUrl: "https://api.mistral.ai/v1",
-        keyAdded: false,
-        category: 'cloudProviders',
+        keyAdded: this.provider === 'mistral' && !!this.apiKey,
+        category: 'cloudProviders' as const
       },
       {
         id: 7,
         logo: "https://github.com/google.png",
         name: "Gemini",
         apiUrl: "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/google-ai-studio",
-        keyAdded: false,
-        category: 'cloudProviders',
+        keyAdded: this.provider === 'gemini' && !!this.apiKey,
+        category: 'cloudProviders' as const
       },
       {
         id: 8,
         logo: "https://github.com/ollama/ollama/raw/main/docs/ollama.png",
         name: "Ollama",
         apiUrl: "http://localhost:11434",
-        keyAdded: false,
-        category: 'localProviders',
+        keyAdded: this.provider === 'ollama' && !!this.apiKey,
+        category: 'localProviders' as const
       },
       {
         id: 9,
         logo: "https://openrouter.ai/favicon.ico",
         name: "OpenRouter",
         apiUrl: "https://openrouter.ai/api/v1",
-        keyAdded: false,
+        keyAdded: this.provider === 'openrouter' && !!this.apiKey,
         key: "",
-        category: 'cloudProviders',
+        category: 'cloudProviders' as const
       },
       {
         id: 10,
         logo: "https://huggingface.co/front/assets/huggingface_logo.svg",
         name: "HuggingFace",
         apiUrl: "https://api-inference.huggingface.co/models",
-        keyAdded: false,
-        category: 'cloudProviders',
+        keyAdded: this.provider === 'huggingface' && !!this.apiKey,
+        category: 'cloudProviders' as const
+      },
+      {
+        id: 11,
+        logo: "https://replicate.com/static/favicon.a335b4b0b7eb.png",
+        name: "Replicate",
+        apiUrl: "https://api.replicate.com/v1",
+        keyAdded: this.provider === 'replicate' && !!this.apiKey,
+        category: 'cloudProviders' as const
       }
     ];
+
+    return providers;
   }
 }
 

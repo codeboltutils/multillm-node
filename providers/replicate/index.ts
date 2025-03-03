@@ -36,12 +36,20 @@ class ReplicateAI implements LLMProvider {
     this.apiKey = apiKey;
     this.apiEndpoint = apiEndpoint;
     this.provider = "replicate";
+    
+    if (!this.apiKey) {
+      throw new Error('API key is required for Replicate');
+    }
+    
     this.client = new Replicate({
       auth: this.apiKey || '',
     });
   }
 
   private formatMessages(messages: ChatMessage[]): string {
+    if (!messages || messages.length === 0) {
+      throw new Error('Messages array cannot be empty');
+    }
     return messages.map(msg => {
       if (msg.role === 'system') {
         return `System: ${msg.content}`;
@@ -56,6 +64,10 @@ class ReplicateAI implements LLMProvider {
 
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
+      if (options.model && options.model !== this.model) {
+        throw new Error(`Model ${options.model} is not supported`);
+      }
+
       const prompt = this.formatMessages(options.messages);
       const modelId = (this.model || DEFAULT_MODEL) as `${string}/${string}:${string}`;
       const output = await this.client.run(
@@ -104,7 +116,7 @@ class ReplicateAI implements LLMProvider {
       logo: "replicate-logo.png",
       name: "Replicate",
       apiUrl: "https://api.replicate.com/v1",
-      keyAdded: !!this.apiKey,
+      keyAdded: true,
       category: 'cloudProviders'
     }];
   }
@@ -113,6 +125,7 @@ class ReplicateAI implements LLMProvider {
     return [
       {
         id: 'meta/llama-2-70b-chat',
+        name: 'Llama 2 70B Chat',
         object: 'model',
         created: 1677610602,
         owned_by: 'meta',
@@ -120,6 +133,7 @@ class ReplicateAI implements LLMProvider {
       },
       {
         id: 'meta/llama-2-13b-chat',
+        name: 'Llama 2 13B Chat',
         object: 'model',
         created: 1677610602,
         owned_by: 'meta',

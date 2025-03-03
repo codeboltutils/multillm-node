@@ -74,6 +74,10 @@ export interface ChatCompletionResponse {
   choices: Array<{
     index: number;
     message: ChatMessage;
+    delta?: {
+      role?: string;
+      content?: string;
+    };
     finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | null;
   }>;
   usage: {
