@@ -9,11 +9,57 @@ interface HuggingFaceMessage {
 
 function transformMessages(messages: ChatMessage[]): string {
   // Convert messages to a format that HuggingFace models expect
-  return messages.map(message => {
+  let prompt = messages.map(message => {
     const role = message.role === 'assistant' ? 'Assistant' : 
-                message.role === 'system' ? 'System' : 'Human';
+                message.role === 'system' ? 'System' : 
+                message.role === 'function' ? 'Function' : 'Human';
+    
+    // Handle function calls and results
+    if (message.role === 'assistant' && message.tool_calls) {
+      const toolCalls = message.tool_calls.map(tool => 
+        `Call function: ${tool.function.name} with args: ${tool.function.arguments}`
+      ).join('\n');
+      return `${role}: ${message.content || ''}\n${toolCalls}`;
+    }
+    
+    // Handle function responses
+    if (message.role === 'function') {
+      return `${role} ${message.name}: ${message.content}`;
+    }
+    
     return `${role}: ${message.content}`;
-  }).join('\n') + '\nAssistant:';
+  }).join('\n');
+
+  // Add available tools to the prompt if provided
+  return prompt + '\nAssistant:';
+}
+
+function parseToolCalls(text: string): any[] | null {
+  // Simple regex to detect function calls in the format: Call function: name with args: {...}
+  const regex = /Call function: (\w+) with args: ({[^}]+})/g;
+  const matches = [...text.matchAll(regex)];
+  
+  if (matches.length === 0) {
+    return null;
+  }
+
+  return matches.map((match, index) => {
+    try {
+      const name = match[1];
+      const args = JSON.parse(match[2]);
+      return {
+        id: `call_${index}`,
+        type: 'function',
+        function: {
+          name,
+          arguments: JSON.stringify(args)
+        }
+      };
+    } catch (e) {
+      console.warn('Failed to parse tool call:', e);
+      return null;
+    }
+  }).filter(Boolean);
 }
 
 class HuggingFace implements LLMProvider {
@@ -48,7 +94,21 @@ class HuggingFace implements LLMProvider {
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
       const modelId = options.model || this.model || "mistralai/Mixtral-8x7B-Instruct-v0.1";
-      const prompt = transformMessages(options.messages);
+      
+      // Add tools to the system message if provided
+      let messages = [...options.messages];
+      if (options.tools?.length) {
+        const toolsDesc = options.tools.map(tool => 
+          `Available function: ${tool.function.name}\nDescription: ${tool.function.description}\nParameters: ${JSON.stringify(tool.function.parameters, null, 2)}`
+        ).join('\n\n');
+        
+        messages.unshift({
+          role: 'system',
+          content: `You have access to the following functions:\n${toolsDesc}\n\nTo use a function, respond with: Call function: <name> with args: <arguments as JSON>`
+        });
+      }
+
+      const prompt = transformMessages(messages);
 
       const response = await axios.post(
         `${this.apiEndpoint}/${modelId}`,
@@ -72,7 +132,10 @@ class HuggingFace implements LLMProvider {
 
       // Extract the generated text from the response
       const generatedText = response.data[0]?.generated_text || '';
-
+      
+      // Check for tool calls in the response
+      const toolCalls = parseToolCalls(generatedText);
+      
       return {
         id: `hf-${Date.now()}`,
         object: 'chat.completion',
@@ -82,9 +145,10 @@ class HuggingFace implements LLMProvider {
           index: 0,
           message: {
             role: 'assistant',
-            content: generatedText.trim()
+            content: toolCalls ? null : generatedText.trim(),
+            tool_calls: toolCalls || undefined
           },
-          finish_reason: 'stop'
+          finish_reason: toolCalls ? 'tool_calls' : 'stop'
         }],
         usage: {
           prompt_tokens: response.data.usage?.prompt_tokens || 0,

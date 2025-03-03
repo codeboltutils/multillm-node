@@ -10,6 +10,7 @@ import MistralAI from './providers/mistral/index';
 import Gemini from './providers/gemini/index';
 import Ollama from './providers/ollama/index';
 import OpenRouter from './providers/openrouter/index';
+import HuggingFace from './providers/huggingface/index';
 
 class Multillm implements LLMProvider {
   public provider: SupportedProvider;
@@ -67,6 +68,10 @@ class Multillm implements LLMProvider {
       }
       case "openrouter": {
         this.instance = new OpenRouter(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+        break;
+      }
+      case "huggingface": {
+        this.instance = new HuggingFace(this.model, this.device_map, this.apiKey, this.apiEndpoint);
         break;
       }
       default: {
@@ -159,6 +164,14 @@ class Multillm implements LLMProvider {
         apiUrl: "https://openrouter.ai/api/v1",
         keyAdded: false,
         key: "",
+        category: 'cloudProviders',
+      },
+      {
+        id: 10,
+        logo: "https://huggingface.co/front/assets/huggingface_logo.svg",
+        name: "HuggingFace",
+        apiUrl: "https://api-inference.huggingface.co/models",
+        keyAdded: false,
         category: 'cloudProviders',
       }
     ];

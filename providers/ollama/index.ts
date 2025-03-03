@@ -49,20 +49,23 @@ class Ollama implements LLMProvider {
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
       const response = await axios.post(
-        `${this.apiEndpoint}/api/chat`,
+        `${this.apiEndpoint}/api/generate`,  // Using generate endpoint instead of chat
         {
           model: options.model || this.model || "mixtral",
-          messages: transformMessages(options.messages),
+          prompt: options.messages.map(msg => `${msg.role}: ${msg.content}`).join('\n'),
           options: {
             temperature: options.temperature,
             top_p: options.top_p,
             num_predict: options.max_tokens,
             stop: options.stop
           },
-          stream: options.stream
+          stream: false
         }
       );
 
+      // Handle Ollama's response format
+      const responseContent = response.data.response || "I apologize, but I couldn't generate a response at this time.";
+      
       return {
         id: `ollama-${Date.now()}`,
         object: 'chat.completion',
@@ -72,9 +75,9 @@ class Ollama implements LLMProvider {
           index: 0,
           message: {
             role: 'assistant',
-            content: response.data.message.content
+            content: responseContent
           },
-          finish_reason: response.data.done ? 'stop' : null
+          finish_reason: 'stop'
         }],
         usage: {
           prompt_tokens: response.data.prompt_eval_count || 0,
