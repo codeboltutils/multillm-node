@@ -26,11 +26,22 @@ export type SupportedProvider =
   | "openrouter"
   | "cloudflare";
 
+export interface AWSConfig {
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  region?: string;
+}
+
+export interface ProviderConfig {
+  aws?: AWSConfig;
+}
+
 export interface BaseProvider {
   model: string | null;
   device_map: string | null;
   apiKey?: string | null;
   apiEndpoint: string | null;
+  config?: ProviderConfig;
 }
 
 export interface ChatMessage {

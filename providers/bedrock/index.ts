@@ -1,13 +1,14 @@
 import axios from 'axios';
 import { handleError } from '../../utils/errorHandler';
-import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
+import { AwsClient } from 'aws4fetch';
+import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage, AWSConfig } from '../../types';
 
 type Tool = {
   type: 'function';
   function: {
     name: string;
-    description: string;
-    parameters: Record<string, any>;
+    description?: string;
+    parameters?: Record<string, any>;
   };
 };
 
@@ -45,92 +46,88 @@ class Bedrock implements LLMProvider {
   public apiKey: string | null;
   public apiEndpoint: string | null;
   public provider: "bedrock";
+  private awsClient: AwsClient;
 
   constructor(
     model: string | null = null,
     device_map: string | null = null,
     apiKey: string | null = null,
-    apiEndpoint: string | null = null
+    apiEndpoint: string | null = null,
+    awsConfig: AWSConfig = {}
   ) {
     this.defaultModels = [
-      "anthropic.claude-3-sonnet-20240229",
-      "anthropic.claude-3-haiku-20240307",
+      "anthropic.claude-3-sonnet-20240229-v1:0",
+      "anthropic.claude-3-haiku-20240307-v1:0",
       "anthropic.claude-instant-v1",
       "meta.llama2-70b-chat-v1",
       "amazon.titan-text-express-v1",
       "cohere.command-text-v14"
     ];
-    this.model = model || "anthropic.claude-3-sonnet-20240229";
+    this.model = model || "anthropic.claude-3-sonnet-20240229-v1:0";
     this.device_map = device_map;
     this.apiKey = apiKey;
-    this.apiEndpoint = apiEndpoint ?? "https://bedrock-runtime.us-east-1.amazonaws.com/v1";
+    this.apiEndpoint = apiEndpoint;
     this.provider = "bedrock";
+    
+    // Initialize AWS client with provided config or environment variables
+    this.awsClient = new AwsClient({
+      accessKeyId: awsConfig.accessKeyId || process.env.AWS_ACCESS_KEY_ID || '',
+      secretAccessKey: awsConfig.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY || '',
+      region: awsConfig.region || 'us-east-1',
+      service: 'bedrock'
+    });
   }
 
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
-      const modelId = options.model || this.model || "anthropic.claude-3-sonnet-20240229";
+      const modelId = options.model || this.model || "anthropic.claude-3-sonnet-20240229-v1:0";
       const messages = transformMessages(options.messages);
 
-      // Different models have different request formats
-      let requestBody;
-      if (modelId.startsWith('anthropic.')) {
-        requestBody = {
-          anthropic_version: "bedrock-2023-05-31",
-          messages: messages,
-          max_tokens: options.max_tokens || 1024,
+      // Extract host and path from endpoint
+      const url = new URL(this.apiEndpoint || process.env.AWS_BEDROCK_ENDPOINT || '');
+      const host = url.host;
+
+      // Prepare request body according to Bedrock format
+      const requestBody = {
+        modelId,
+        input: {
+          messages: messages.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          })),
+          max_tokens: options.max_tokens || 100,
           temperature: options.temperature,
           top_p: options.top_p,
-          stop_sequences: options.stop,
           tools: options.tools ? transformTools(options.tools) : undefined
-        };
-      } else if (modelId.startsWith('meta.')) {
-        requestBody = {
-          prompt: messages.map(m => `${m.role}: ${m.content}`).join('\n'),
-          max_gen_len: options.max_tokens,
-          temperature: options.temperature,
-          top_p: options.top_p
-        };
-      } else if (modelId.startsWith('amazon.')) {
-        requestBody = {
-          inputText: messages.map(m => `${m.role}: ${m.content}`).join('\n'),
-          textGenerationConfig: {
-            maxTokenCount: options.max_tokens,
-            temperature: options.temperature,
-            topP: options.top_p,
-            stopSequences: options.stop
-          }
-        };
-      } else if (modelId.startsWith('cohere.')) {
-        requestBody = {
-          prompt: messages.map(m => `${m.role}: ${m.content}`).join('\n'),
-          max_tokens: options.max_tokens,
-          temperature: options.temperature,
-          p: options.top_p,
-          stop_sequences: options.stop
-        };
-      }
+        },
+        auth: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+          region: 'us-east-1'
+        }
+      };
 
+      // Make request to Cloudflare AI Gateway
       const response = await axios.post(
-        `${this.apiEndpoint}/models/${modelId}/invoke`,
+        this.apiEndpoint || '',
         requestBody,
         {
           headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${this.apiKey}`
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Host': host
           }
         }
       );
 
-      // Transform response based on model
+      // Handle the response
       let content = '';
       let toolCalls;
-      
-      if (modelId.startsWith('anthropic.')) {
+
+      if (response.data.content && response.data.content[0]) {
         const responseContent = response.data.content[0];
         content = responseContent.text || '';
         
-        // Handle tool calls in the response
         if (responseContent.tool_calls) {
           toolCalls = responseContent.tool_calls.map((call: any) => ({
             id: `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -141,12 +138,6 @@ class Bedrock implements LLMProvider {
             }
           }));
         }
-      } else if (modelId.startsWith('meta.')) {
-        content = response.data.generation;
-      } else if (modelId.startsWith('amazon.')) {
-        content = response.data.results[0].outputText;
-      } else if (modelId.startsWith('cohere.')) {
-        content = response.data.generations[0].text;
       }
 
       return {
@@ -164,9 +155,9 @@ class Bedrock implements LLMProvider {
           finish_reason: toolCalls ? 'tool_calls' : 'stop'
         }],
         usage: {
-          prompt_tokens: response.data.usage?.input_tokens || 0,
-          completion_tokens: response.data.usage?.output_tokens || 0,
-          total_tokens: (response.data.usage?.input_tokens || 0) + (response.data.usage?.output_tokens || 0)
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0
         }
       };
     } catch (error) {
@@ -176,10 +167,10 @@ class Bedrock implements LLMProvider {
 
   getProviders(): Provider[] {
     return [{
-      id: 8,
-      logo: "bedrock-logo.png",
+      id: 12,
+      logo: "https://d1.awsstatic.com/logos/aws-logo-lockups/poweredbyaws/PB_AWS_logo_RGB_REV_SQ.8c88ac215fe4e441cbd3b3be1d023927390ec2d5.png",
       name: "AWS Bedrock",
-      apiUrl: this.apiEndpoint || "https://bedrock-runtime.us-east-1.amazonaws.com/v1",
+      apiUrl: this.apiEndpoint || "",
       keyAdded: !!this.apiKey,
       category: 'cloudProviders'
     }];

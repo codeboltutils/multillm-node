@@ -1,4 +1,4 @@
-import type { Provider, SupportedProvider, LLMProvider } from './types.ts';
+import type { Provider, SupportedProvider, LLMProvider, ProviderConfig } from './types';
 
 // Import providers
 import CodeBoltAI from './providers/codebolt/index';
@@ -12,6 +12,8 @@ import Ollama from './providers/ollama/index';
 import OpenRouter from './providers/openrouter/index';
 import HuggingFace from './providers/huggingface/index';
 import ReplicateAI from './providers/replicate/index';
+import Bedrock from './providers/bedrock/index';
+import CloudflareAI from './providers/cloudflare/index';
 
 class Multillm implements LLMProvider {
   public provider: SupportedProvider;
@@ -19,6 +21,7 @@ class Multillm implements LLMProvider {
   public apiKey: string | null;
   public model: string | null;
   public apiEndpoint: string | null;
+  public config: ProviderConfig;
   private instance: LLMProvider;
 
   constructor(
@@ -26,13 +29,15 @@ class Multillm implements LLMProvider {
     model: string | null = null,
     device_map: string | null = null,
     apiKey: string | null = null,
-    apiEndpoint: string | null = null
+    apiEndpoint: string | null = null,
+    config: ProviderConfig = {}
   ) {
     this.provider = provider;
     this.device_map = device_map;
     this.apiKey = apiKey;
     this.model = model;
     this.apiEndpoint = apiEndpoint;
+    this.config = config;
 
     switch (this.provider) {
       case "codeboltai": {
@@ -77,6 +82,18 @@ class Multillm implements LLMProvider {
       }
       case "replicate": {
         this.instance = new ReplicateAI(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+        break;
+      }
+      case "bedrock": {
+        this.instance = new Bedrock(this.model, this.device_map, this.apiKey, this.apiEndpoint, config.aws);
+        break;
+      }
+      case "cloudflare": {
+        this.instance = new CloudflareAI({
+          apiKey: this.apiKey || '',
+          apiEndpoint: this.apiEndpoint || '',
+          model: this.model || '@cf/meta/llama-3.1-8b-instruct'
+        });
         break;
       }
       default: {
@@ -185,6 +202,22 @@ class Multillm implements LLMProvider {
         name: "Replicate",
         apiUrl: "https://api.replicate.com/v1",
         keyAdded: this.provider === 'replicate' && !!this.apiKey,
+        category: 'cloudProviders' as const
+      },
+      {
+        id: 12,
+        logo: "https://d1.awsstatic.com/logos/aws-logo-lockups/poweredbyaws/PB_AWS_logo_RGB_REV_SQ.8c88ac215fe4e441cbd3b3be1d023927390ec2d5.png",
+        name: "AWS Bedrock",
+        apiUrl: "https://bedrock-runtime.us-east-1.amazonaws.com/v1",
+        keyAdded: this.provider === 'bedrock' && !!this.apiKey,
+        category: 'cloudProviders' as const
+      },
+      {
+        id: 13,
+        logo: "https://github.com/cloudflare.png",
+        name: "Cloudflare AI",
+        apiUrl: "https://gateway.ai.cloudflare.com/v1",
+        keyAdded: this.provider === 'cloudflare' && !!this.apiKey,
         category: 'cloudProviders' as const
       }
     ];
