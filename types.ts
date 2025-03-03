@@ -61,6 +61,7 @@ export interface ChatMessage {
 
 export interface ChatCompletionOptions {
   messages: ChatMessage[];
+
   model?: string;
   temperature?: number;
   top_p?: number;
@@ -75,6 +76,8 @@ export interface ChatCompletionOptions {
     };
   }>;
   stop?: string | string[];
+  supportTools?:boolean
+  
 }
 
 export interface ChatCompletionResponse {

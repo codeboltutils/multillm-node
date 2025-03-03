@@ -1,20 +1,10 @@
 import axios from 'axios';
-import { handleError } from '../../utils/errorHandler';
-import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage } from '../../types';
+import type { BaseProvider, ChatCompletionOptions, ChatCompletionResponse } from '../../types';
 import parseToolToSystemPrompt, { parseAssistantMessage } from './../../utils/toolParser'
 
-interface LMStudioMessage {
-  role: string;
-  content: string;
-}
-
-function transformMessages(messages: ChatMessage[]): LMStudioMessage[] {
-  return messages.map(message => ({
-    role: message.role === 'function' || message.role === 'tool' ? 'user' : 
-          message.role === 'assistant' ? 'assistant' : 
-          message.role === 'system' ? 'system' : 'user',
-    content: message.content || ''
-  }));
+interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: any;
 }
 
 interface ToolFunction {
@@ -36,25 +26,22 @@ interface Tool {
   type: string;
   function: ToolFunction;
 }
-
 interface CompletionOptions {
   model: string;
-  messages: ChatMessage[];
-  tools: Tool[];
-  supportTools?: boolean;
+  messages: Message[];
+  tools: Tool[],
+  supportTools?:boolean
 }
 
-type FinishReason = 'stop' | 'length' | 'tool_calls' | 'content_filter' | null;
-
-interface LMStudioResponse {
+interface CompletionResponse {
   id: string;
   object: string;
   created: number;
   model: string;
   choices: Array<{
     index: number;
-    message: ChatMessage;
-    finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | null;
+    message: Message;
+    finish_reason: string;
   }>;
   usage: {
     prompt_tokens: number;
@@ -71,95 +58,69 @@ interface Model {
   provider?: string;
 }
 
-class LMStudio implements LLMProvider {
-  private defaultModels: string[];
+class LMStudio implements BaseProvider {
+  private embeddingModels: string[];
   public model: string | null;
   public device_map: string | null;
-  public apiKey: string | null;
-  public apiEndpoint: string | null;
-  public provider: "lmstudio";
+  public apiKey: null = null;
+  public apiEndpoint: string;
 
   constructor(
     model: string | null = null,
     device_map: string | null = null,
     apiEndpoint: string | null = null
   ) {
-    this.defaultModels = ["local-model"];
     this.model = model;
     this.device_map = device_map;
-    this.apiKey = null;
-    this.apiEndpoint = apiEndpoint ?? 'http://localhost:1234/v1';
-    this.provider = "lmstudio";
+    this.embeddingModels = [];
+    this.apiEndpoint = apiEndpoint ?? "http://localhost:1234/v1";
   }
 
-  private normalizeFinishReason(reason: string | null): 'stop' | 'length' | 'tool_calls' | 'content_filter' | null {
-    if (!reason) return null;
-    const validReasons = ['stop', 'length', 'tool_calls', 'content_filter'] as const;
-    return validReasons.includes(reason as any) ? reason as 'stop' | 'length' | 'tool_calls' | 'content_filter' : 'stop';
-  }
-
-  async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
+  async createCompletion(options: any): Promise<ChatCompletionResponse > {
     try {
-      const response = await axios.post<LMStudioResponse>(
+      const response = await axios.post(
         `${this.apiEndpoint}/chat/completions`,
         {
-          ...options,
-          model: options.model || this.model || 'local-model',
-          messages: options.messages
+          model: options.model,
+          messages: !options.supportTools ? parseToolToSystemPrompt(options["messages"], options.tools) : options.messages
         },
         {
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
+      if (options.supportTools) {
+        return response.data;
+      }
 
-      const message: ChatMessage = {
-        role: 'assistant',
-        content: response.data.choices[0].message.content,
-      };
-
-      return {
-        id: response.data.id || 'chat-' + Date.now(),
-        object: 'chat.completion',
-        created: Math.floor(Date.now() / 1000),
-        model: this.model || 'local-model',
-        choices: [
-          {
-            index: 0,
-            message,
-            finish_reason: this.normalizeFinishReason(response.data.choices[0].finish_reason)
-          }
-        ],
-        usage: response.data.usage || {
-          prompt_tokens: 0,
-          completion_tokens: 0,
-          total_tokens: 0
-        }
-      };
+      response.data.choices = parseAssistantMessage(response.data.choices[0].message.content, options.tools);
+      return response.data;
     } catch (error) {
-      throw error;
+      console.error("Error generating completion:", error);
+      throw error
     }
   }
 
-  getProviders(): Provider[] {
-    return [{
-      id: 10,
-      logo: "lmstudio-logo.png",
-      name: "LMStudio",
-      apiUrl: this.apiEndpoint || "http://localhost:1234/v1",
-      keyAdded: true, // No API key needed
-      category: 'localProviders'
-    }];
-  }
-
-  async getModels(): Promise<any> {
-    return this.defaultModels.map(modelId => ({
-      id: modelId,
-      name: modelId,
-      provider: 'LMStudio',
-      type: 'chat'
-    }));
+  async getModels(): Promise<Model[] | Error> {
+    try {
+      const response = await axios.get<{ data: Model[] }>(
+        `${this.apiEndpoint}/models`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const allModels = response.data.data.map((model) => ({
+        ...model,
+        provider: "Local Provider",
+      }));
+      return allModels;
+    } catch (error) {
+      console.error("Error fetching models:", error);
+      return error as Error;
+    }
   }
 }
 

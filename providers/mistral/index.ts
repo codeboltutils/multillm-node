@@ -218,7 +218,7 @@ class MistralAI implements LLMProvider {
     return [{
       id: 3,
       logo: "mistral-logo.png",
-      name: "Mistral AI",
+      name: "Mistral",
       apiUrl: this.apiEndpoint || "https://api.mistral.ai/v1",
       keyAdded: !!this.apiKey,
       category: 'cloudProviders'

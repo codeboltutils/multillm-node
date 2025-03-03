@@ -16,6 +16,11 @@ import Bedrock from './providers/bedrock/index';
 import CloudflareAI from './providers/cloudflare/index';
 import Groq from './providers/groq/index';
 
+
+import Grok from './providers/grok/index';
+import Replicate from './providers/replicate/index';
+
+import Groq from './providers/groq';
 class Multillm implements LLMProvider {
   public provider: SupportedProvider;
   public device_map: string | null;
@@ -81,8 +86,17 @@ class Multillm implements LLMProvider {
         this.instance = new HuggingFace(this.model, this.device_map, this.apiKey, this.apiEndpoint);
         break;
       }
+
+      case "grok": {
+        this.instance = new Grok(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+        break;
+      }
       case "replicate": {
-        this.instance = new ReplicateAI(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+        this.instance = new Replicate(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+        break;
+      }
+      case "groq": {
+        this.instance = new Groq(this.model, this.device_map, this.apiKey, this.apiEndpoint);
         break;
       }
       case "bedrock": {
@@ -152,21 +166,15 @@ class Multillm implements LLMProvider {
         keyAdded: this.provider === 'anthropic' && !!this.apiKey,
         category: 'cloudProviders' as const
       },
-      {
-        id: 5,
-        logo: "https://github.com/perplexity-ai.png",
-        name: "Perplexity",
-        apiUrl: "https://api.perplexity.ai",
-        keyAdded: this.provider === 'perplexity' && !!this.apiKey,
-        category: 'cloudProviders' as const
-      },
+      
       {
         id: 6,
         logo: "https://github.com/mistralai.png",
-        name: "Mistral AI",
+        name: "Mistral",
         apiUrl: "https://api.mistral.ai/v1",
-        keyAdded: this.provider === 'mistral' && !!this.apiKey,
-        category: 'cloudProviders' as const
+        keyAdded: false,
+        key:"",
+        category: 'cloudProviders',
       },
       {
         id: 7,
@@ -198,15 +206,33 @@ class Multillm implements LLMProvider {
         logo: "https://huggingface.co/front/assets/huggingface_logo.svg",
         name: "HuggingFace",
         apiUrl: "https://api-inference.huggingface.co/models",
-        keyAdded: this.provider === 'huggingface' && !!this.apiKey,
-        category: 'cloudProviders' as const
+        keyAdded: false,
+        key: "",
+        category: 'cloudProviders',
       },
       {
         id: 11,
-        logo: "https://replicate.com/static/favicon.a335b4b0b7eb.png",
+        logo: "https://github.com/grok-ai.png",
+        name: "Grok",
+        apiUrl: "https://api.grok.x.ai/v1",
+        keyAdded: false,
+        key: "",
+        category: 'cloudProviders',
+      },
+      {
+        id: 12,
+        logo: "https://replicate.com/favicon.ico",
         name: "Replicate",
         apiUrl: "https://api.replicate.com/v1",
-        keyAdded: this.provider === 'replicate' && !!this.apiKey,
+        keyAdded: false,
+        category: 'cloudProviders',
+      },
+      {
+        id: 13,
+        logo: "https://github.com/perplexity-ai.png",
+        name: "Perplexity",
+        apiUrl: "https://api.perplexity.ai",
+        keyAdded: this.provider === 'perplexity' && !!this.apiKey,
         category: 'cloudProviders' as const
       },
       {
@@ -226,13 +252,13 @@ class Multillm implements LLMProvider {
         category: 'cloudProviders' as const
       },
       {
-        id: 14,
-        logo: "groq-logo.png",
-        name: "groq",
-        apiUrl: this.apiEndpoint || "https://api.groq.com/v1",
-        keyAdded: this.provider === 'groq' && !!this.apiKey,
+        id: 15,
+        logo: "https://github.com/cloudflare.png",
+        name: "Cloudflare",
+        apiUrl: "https://api.cloudflare.com/v1",
+        keyAdded: this.provider === 'cloudflare' && !!this.apiKey,
         category: 'cloudProviders' as const
-      }
+      },
     ];
 
     return providers;
