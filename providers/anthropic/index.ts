@@ -389,10 +389,16 @@ class AnthropicHandler implements BaseProvider {
             messages: messages.map((msg: { content: string | Array<{ type: string; text: string }> }) => ({
               ...msg,
               content: typeof msg.content === "string" ? [{ type: "text" as const, text: msg.content }] : msg.content
-            })),
-            tools: convertFunctionFormat(tools) || [],
-            tool_choice: { type: "auto" as const },
-          });
+            }))
+          };
+
+          // Only add tools and tool_choice if tools are provided
+          if (tools && tools.length > 0) {
+            requestParams.tools = convertFunctionFormat(tools);
+            requestParams.tool_choice = { type: "auto" as const };
+          }
+
+          const message = await this.client.messages.create(requestParams);
           return convertToOpenAIFormat(message);
         }
       }
