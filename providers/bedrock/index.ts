@@ -149,18 +149,7 @@ class Bedrock implements LLMProvider {
     };
   }
 
-  getProviders(): Provider[] {
-    return [{
-      id: 12,
-      logo: "https://d1.awsstatic.com/logos/aws-logo-lockups/poweredbyaws/PB_AWS_logo_RGB_REV_SQ.8c88ac215fe4e441cbd3b3be1d023927390ec2d5.png",
-      name: "AWS Bedrock",
-      apiUrl: this.apiEndpoint || "",
-      keyAdded: !!this.apiKey,
-      category: 'cloudProviders'
-    }];
-  }
-
-  async getModels() {
+  async getModels(): Promise<any> {
     return [{
       id: this.model,
       name: this.model,

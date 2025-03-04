@@ -110,17 +110,6 @@ class ReplicateAI implements LLMProvider {
     }
   }
 
-  getProviders(): Provider[] {
-    return [{
-      id: 12,
-      logo: "replicate-logo.png",
-      name: "Replicate",
-      apiUrl: "https://api.replicate.com/v1",
-      keyAdded: true,
-      category: 'cloudProviders'
-    }];
-  }
-
   async getModels(): Promise<any> {
     return [
       {

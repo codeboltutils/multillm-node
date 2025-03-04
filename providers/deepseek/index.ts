@@ -195,18 +195,7 @@ class DeepseekAI implements LLMProvider {
     }
   }
 
-  getProviders(): Provider[] {
-    return [{
-      id: 4,
-      logo: "deepseek-logo.png",
-      name: "Deepseek",
-      apiUrl: this.apiEndpoint || "https://api.deepseek.com/v1",
-      keyAdded: !!this.apiKey,
-      category: 'cloudProviders'
-    }];
-  }
-
-  async getModels() {
+  async getModels(): Promise<any> {
     try {
       const response = await axios.get(
         `${this.apiEndpoint}/models`,

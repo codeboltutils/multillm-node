@@ -214,18 +214,7 @@ class MistralAI implements LLMProvider {
     }
   }
 
-  getProviders(): Provider[] {
-    return [{
-      id: 3,
-      logo: "mistral-logo.png",
-      name: "Mistral",
-      apiUrl: this.apiEndpoint || "https://api.mistral.ai/v1",
-      keyAdded: !!this.apiKey,
-      category: 'cloudProviders'
-    }];
-  }
-
-  async getModels() {
+  async getModels(): Promise<any> {
     try {
       const response = await axios.get(
         `${this.apiEndpoint}/models`,

@@ -101,18 +101,7 @@ class OpenAI implements LLMProvider {
     }
   }
 
-  getProviders(): Provider[] {
-    return [{
-      id: 1,
-      logo: "openai-logo.png",
-      name: "OpenAI",
-      apiUrl: this.apiEndpoint || "https://api.openai.com/v1",
-      keyAdded: !!this.apiKey,
-      category: 'cloudProviders'
-    }];
-  }
-
-  async getModels() {
+  async getModels(): Promise<any> {
     try {
       const response = await this.client.models.list();
       return response.data

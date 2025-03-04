@@ -90,18 +90,7 @@ class Ollama implements LLMProvider {
     }
   }
 
-  getProviders(): Provider[] {
-    return [{
-      id: 5,
-      logo: "ollama-logo.png",
-      name: "Ollama",
-      apiUrl: this.apiEndpoint || "http://localhost:11434",
-      keyAdded: true, // Ollama doesn't require API key
-      category: 'localProviders'
-    }];
-  }
-
-  async getModels() {
+  async getModels(): Promise<any> {
     try {
       const response = await axios.get(`${this.apiEndpoint}/api/tags`);
       

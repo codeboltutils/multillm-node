@@ -79,18 +79,7 @@ class Grok implements LLMProvider {
     }
   }
 
-  getProviders(): Provider[] {
-    return [{
-      id: 13,
-      logo: "grok-logo.png",
-      name: "Grok",
-      apiUrl: this.apiEndpoint || "https://api.grok.x.ai/v1",
-      keyAdded: !!this.apiKey,
-      category: 'cloudProviders'
-    }];
-  }
-
-  async getModels() {
+  async getModels(): Promise<any> {
     return this.defaultModels.map(modelId => ({
       id: modelId,
       name: modelId,

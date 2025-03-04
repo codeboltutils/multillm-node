@@ -226,17 +226,6 @@ class AnthropicAI implements LLMProvider {
       provider: 'Anthropic'
     }));
   }
-
-  getProviders(): Provider[] {
-    return [{
-      id: 1,
-      logo: '',
-      name: 'Anthropic',
-      apiUrl: this.apiEndpoint || '',
-      keyAdded: Boolean(this.apiKey && this.apiKey.length > 0),
-      category: 'cloudProviders'
-    }];
-  }
 }
 
 export default AnthropicAI; 

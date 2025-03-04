@@ -126,146 +126,118 @@ class Multillm implements LLMProvider {
   async getModels(): Promise<any> {
     return this.instance.getModels();
   }
+}
 
-  getProviders(): Provider[] {
-    const providers: Provider[] = [
-      {
-        id: 1,
-        logo: "https://avatars.githubusercontent.com/u/166920414?s=200&v=4",
-        name: "CodeBolt AI",
-        apiUrl: "https://codeboltproxy.arrowai.workers.dev/v1",
-        key: "",
-        keyAdded: this.provider === 'codeboltai' && !!this.apiKey,
-        category: 'codebolt' as const
-      },
-      {
-        id: 2,
-        logo: "https://github.com/openai.png",
-        name: "Open AI",
-        apiUrl: "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/openai",
-        key: "",
-        keyAdded: this.provider === 'openai' && !!this.apiKey,
-        category: 'cloudProviders' as const
-      },
-      {
-        id: 3,
-        logo: "https://github.com/lmstudio-ai.png",
-        name: "LM Studio",
-        apiUrl: "http://localhost:1234/v1",
-        keyAdded: this.provider === 'lmstudio' && !!this.apiKey,
-        category: 'localProviders' as const
-      },
-      {
-        id: 4,
-        logo: "https://github.com/anthropics.png",
-        name: "Anthropic",
-        apiUrl: "https://api.anthropic.com",
-        keyAdded: this.provider === 'anthropic' && !!this.apiKey,
-        category: 'cloudProviders' as const
-      },
-      {
-        id: 5,
-        logo: "https://github.com/deepseek-ai.png",
-        name: "Deepseek",
-        apiUrl: "https://api.deepseek.com/v1",
-        keyAdded: this.provider === 'deepseek' && !!this.apiKey,
-        category: 'cloudProviders' as const
-      },
-      {
-        id: 6,
-        logo: "https://github.com/mistralai.png",
-        name: "Mistral",
-        apiUrl: "https://api.mistral.ai/v1",
-        keyAdded: this.provider === 'mistral' && !!this.apiKey,
-        category: 'cloudProviders',
-      },
-      {
-        id: 7,
-        logo: "https://github.com/google.png",
-        name: "Gemini",
-        apiUrl: "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/google-ai-studio",
-        keyAdded: this.provider === 'gemini' && !!this.apiKey,
-        category: 'cloudProviders' as const
-      },
-      {
-        id: 8,
-        logo: "https://github.com/ollama/ollama/raw/main/docs/ollama.png",
-        name: "Ollama",
-        apiUrl: "http://localhost:11434",
-        keyAdded: this.provider === 'ollama' && !!this.apiKey,
-        category: 'localProviders' as const
-      },
-      {
-        id: 9,
-        logo: "https://openrouter.ai/favicon.ico",
-        name: "OpenRouter",
-        apiUrl: "https://openrouter.ai/api/v1",
-        keyAdded: this.provider === 'openrouter' && !!this.apiKey,
-        key: "",
-        category: 'cloudProviders' as const
-      },
-      {
-        id: 10,
-        logo: "https://huggingface.co/front/assets/huggingface_logo.svg",
-        name: "HuggingFace",
-        apiUrl: "https://api-inference.huggingface.co/models",
-        keyAdded: false,
-        key: "",
-        category: 'cloudProviders',
-      },
-      {
-        id: 11,
-        logo: "https://github.com/grok-ai.png",
-        name: "Grok",
-        apiUrl: "https://api.grok.x.ai/v1",
-        keyAdded: false,
-        key: "",
-        category: 'cloudProviders',
-      },
-      {
-        id: 12,
-        logo: "https://replicate.com/favicon.ico",
-        name: "Replicate",
-        apiUrl: "https://api.replicate.com/v1",
-        keyAdded: false,
-        category: 'cloudProviders',
-      },
-      {
-        id: 13,
-        logo: "https://github.com/perplexity-ai.png",
-        name: "Perplexity",
-        apiUrl: "https://api.perplexity.ai",
-        keyAdded: this.provider === 'perplexity' && !!this.apiKey,
-        category: 'cloudProviders' as const
-      },
-      {
-        id: 12,
-        logo: "https://d1.awsstatic.com/logos/aws-logo-lockups/poweredbyaws/PB_AWS_logo_RGB_REV_SQ.8c88ac215fe4e441cbd3b3be1d023927390ec2d5.png",
-        name: "AWS Bedrock",
-        apiUrl: "https://bedrock-runtime.us-east-1.amazonaws.com/v1",
-        keyAdded: this.provider === 'bedrock' && !!this.apiKey,
-        category: 'cloudProviders' as const
-      },
-      {
-        id: 13,
-        logo: "https://github.com/cloudflare.png",
-        name: "Cloudflare AI",
-        apiUrl: "https://gateway.ai.cloudflare.com/v1",
-        keyAdded: this.provider === 'cloudflare' && !!this.apiKey,
-        category: 'cloudProviders' as const
-      },
-      {
-        id: 15,
-        logo: "https://github.com/cloudflare.png",
-        name: "Cloudflare",
-        apiUrl: "https://api.cloudflare.com/v1",
-        keyAdded: this.provider === 'cloudflare' && !!this.apiKey,
-        category: 'cloudProviders' as const
-      },
-    ];
+export function getProviders(): Provider[] {
+  const providers: Provider[] = [
+    {
+      id: 1,
+      logo: "https://avatars.githubusercontent.com/u/166920414?s=200&v=4",
+      name: "CodeBolt AI",
+      apiUrl: "https://codeboltproxy.arrowai.workers.dev/v1",
+      category: 'codebolt'
+    },
+    {
+      id: 2,
+      logo: "https://github.com/openai.png",
+      name: "Open AI",
+      apiUrl: "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/openai",
+      category: 'cloudProviders'
+    },
+    {
+      id: 3,
+      logo: "https://github.com/lmstudio-ai.png",
+      name: "LM Studio",
+      apiUrl: "http://localhost:1234/v1",
+      category: 'localProviders'
+    },
+    {
+      id: 4,
+      logo: "https://github.com/anthropics.png",
+      name: "Anthropic",
+      apiUrl: "https://api.anthropic.com",
+      category: 'cloudProviders'
+    },
+    {
+      id: 5,
+      logo: "https://github.com/deepseek-ai.png",
+      name: "Deepseek",
+      apiUrl: "https://api.deepseek.com/v1",
+      category: 'cloudProviders'
+    },
+    {
+      id: 6,
+      logo: "https://github.com/mistralai.png",
+      name: "Mistral",
+      apiUrl: "https://api.mistral.ai/v1",
+      category: 'cloudProviders'
+    },
+    {
+      id: 7,
+      logo: "https://github.com/google.png",
+      name: "Gemini",
+      apiUrl: "https://gateway.ai.cloudflare.com/v1/8073e84dbfc4e2bc95666192dcee62c0/codebolt/google-ai-studio",
+      category: 'cloudProviders'
+    },
+    {
+      id: 8,
+      logo: "https://github.com/ollama/ollama/raw/main/docs/ollama.png",
+      name: "Ollama",
+      apiUrl: "http://localhost:11434",
+      category: 'localProviders'
+    },
+    {
+      id: 9,
+      logo: "https://openrouter.ai/favicon.ico",
+      name: "OpenRouter",
+      apiUrl: "https://openrouter.ai/api/v1",
+      category: 'cloudProviders'
+    },
+    {
+      id: 10,
+      logo: "https://huggingface.co/front/assets/huggingface_logo.svg",
+      name: "HuggingFace",
+      apiUrl: "https://api-inference.huggingface.co/models",
+      category: 'cloudProviders'
+    },
+    {
+      id: 11,
+      logo: "https://github.com/grok-ai.png",
+      name: "Grok",
+      apiUrl: "https://api.grok.x.ai/v1",
+      category: 'cloudProviders'
+    },
+    {
+      id: 12,
+      logo: "https://replicate.com/favicon.ico",
+      name: "Replicate",
+      apiUrl: "https://api.replicate.com/v1",
+      category: 'cloudProviders'
+    },
+    {
+      id: 13,
+      logo: "https://github.com/perplexity-ai.png",
+      name: "Perplexity",
+      apiUrl: "https://api.perplexity.ai",
+      category: 'cloudProviders'
+    },
+    {
+      id: 14,
+      logo: "https://d1.awsstatic.com/logos/aws-logo-lockups/poweredbyaws/PB_AWS_logo_RGB_REV_SQ.8c88ac215fe4e441cbd3b3be1d023927390ec2d5.png",
+      name: "AWS Bedrock",
+      apiUrl: "https://bedrock-runtime.us-east-1.amazonaws.com/v1",
+      category: 'cloudProviders'
+    },
+    {
+      id: 15,
+      logo: "https://github.com/cloudflare.png",
+      name: "Cloudflare AI",
+      apiUrl: "https://gateway.ai.cloudflare.com/v1",
+      category: 'cloudProviders'
+    }
+  ];
 
-    return providers;
-  }
+  return providers;
 }
 
 export default Multillm;

@@ -151,17 +151,6 @@ export class Gemini implements LLMProvider {
       type: 'chat'
     }));
   }
-
-  getProviders(): Provider[] {
-    return [{
-      id: 7,
-      logo: "gemini-logo.png",
-      name: "gemini",
-      apiUrl: this.apiEndpoint || "https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/google-ai-studio",
-      keyAdded: !!this.apiKey,
-      category: 'cloudProviders'
-    }];
-  }
 }
 
 export default Gemini; 

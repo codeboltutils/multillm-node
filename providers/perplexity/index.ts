@@ -170,18 +170,7 @@ class Perplexity implements LLMProvider {
     }
   }
 
-  getProviders(): Provider[] {
-    return [{
-      id: 6,
-      logo: "perplexity-logo.png",
-      name: "Perplexity",
-      apiUrl: this.apiEndpoint || "",
-      keyAdded: !!this.apiKey,
-      category: 'cloudProviders'
-    }];
-  }
-
-  async getModels() {
+  async getModels(): Promise<any> {
     return this.defaultModels.map(modelId => ({
       id: modelId,
       name: modelId,

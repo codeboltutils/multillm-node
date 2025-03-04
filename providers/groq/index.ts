@@ -126,18 +126,7 @@ class Groq implements LLMProvider {
     }
   }
 
-  getProviders(): Provider[] {
-    return [{
-      id: 7,
-      logo: "groq-logo.png",
-      name: "groq",
-      apiUrl: this.apiEndpoint || "https://api.groq.com/v1",
-      keyAdded: !!this.apiKey,
-      category: 'cloudProviders'
-    }];
-  }
-
-  async getModels() {
+  async getModels(): Promise<any> {
     return this.defaultModels.map(modelId => ({
       id: modelId,
       name: modelId,

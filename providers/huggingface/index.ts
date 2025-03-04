@@ -161,18 +161,7 @@ class HuggingFace implements LLMProvider {
     }
   }
 
-  getProviders(): Provider[] {
-    return [{
-      id: 9,
-      logo: "huggingface-logo.png",
-      name: "Hugging Face",
-      apiUrl: this.apiEndpoint || "https://api-inference.huggingface.co/models",
-      keyAdded: !!this.apiKey,
-      category: 'cloudProviders'
-    }];
-  }
-
-  async getModels() {
+  async getModels(): Promise<any> {
     return this.defaultModels.map(modelId => ({
       id: modelId,
       name: modelId,

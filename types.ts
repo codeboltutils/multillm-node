@@ -3,8 +3,6 @@ export interface Provider {
   logo: string;
   name: string;
   apiUrl: string;
-  key?: string;
-  keyAdded: boolean;
   category: 'codebolt' | 'cloudProviders' | 'localProviders';
 }
 
@@ -104,7 +102,6 @@ export interface ChatCompletionResponse {
 
 export interface LLMProvider extends BaseProvider {
   provider?: SupportedProvider;
-  getProviders?(): Provider[];
   createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse>;
   getModels(): Promise<any>;
 } 
