@@ -1,183 +1,152 @@
+import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import axios from 'axios';
-import { handleError } from '../../utils/errorHandler';
-import { AwsClient } from 'aws4fetch';
 import type { BaseProvider, LLMProvider, ChatCompletionOptions, ChatCompletionResponse, Provider, ChatMessage, AWSConfig } from '../../types';
 
-type Tool = {
-  type: 'function';
+interface Tool {
+  type: string;
   function: {
     name: string;
-    description?: string;
-    parameters?: Record<string, any>;
+    description: string;
+    parameters: {
+      type: string;
+      properties: Record<string, any>;
+      required: string[];
+    };
   };
-};
-
-interface BedrockMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
 }
 
-function transformMessages(messages: ChatMessage[]): BedrockMessage[] {
+interface Message {
+  role: string;
+  content: string | null;
+  tool_calls?: Array<{
+    id: string;
+    type: string;
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
+}
+
+function transformMessages(messages: Message[]): any[] {
   if (!messages || messages.length === 0) {
     throw new Error('Messages array cannot be empty');
   }
-  return messages.map(message => ({
-    role: message.role === 'function' || message.role === 'tool' ? 'user' : 
-          message.role === 'assistant' ? 'assistant' : 
-          message.role === 'system' ? 'system' : 'user',
-    content: message.content || ''
+  return messages.map(msg => ({
+    role: msg.role,
+    content: msg.content || ''
   }));
 }
 
-function transformTools(tools?: Tool[]): Tool[] | undefined {
-  if (!tools) return undefined;
-  
-  return tools.map(tool => {
-    if (!tool.function?.name) {
-      throw new Error('Tool function name is required');
-    }
-    return {
-      type: 'function' as const,
-      function: {
-        name: tool.function.name,
-        description: tool.function.description,
-        parameters: tool.function.parameters
+function transformTools(tools: Tool[]): any[] {
+  if (!tools) return [];
+  return tools.map(tool => ({
+    type: tool.type,
+    function: {
+      name: tool.function.name,
+      description: tool.function.description,
+      parameters: {
+        type: tool.function.parameters.type,
+        properties: tool.function.parameters.properties,
+        required: tool.function.parameters.required
       }
-    };
-  });
+    }
+  }));
 }
 
 class Bedrock implements LLMProvider {
-  private defaultModels: string[];
-  public model: string | null;
-  public device_map: string | null;
+  public model: string;
   public apiKey: string | null;
   public apiEndpoint: string | null;
   public provider: "bedrock";
-  private awsClient: AwsClient;
+  public device_map: string | null;
+  private client: BedrockRuntimeClient;
 
   constructor(
-    model: string | null = null,
-    device_map: string | null = null,
-    apiKey: string | null = null,
-    apiEndpoint: string | null = null,
-    awsConfig: AWSConfig = {}
+    model: string | null,
+    apiKey: string | null,
+    apiEndpoint: string | null,
+    awsConfig?: AWSConfig
   ) {
-    if (!apiKey) {
-      throw new Error('API key is required for Bedrock provider');
-    }
-    if (!apiEndpoint) {
-      throw new Error('API endpoint is required for Bedrock provider');
-    }
-
-    this.defaultModels = [
-      "anthropic.claude-3-sonnet-20240229-v1:0",
-      "anthropic.claude-3-haiku-20240307-v1:0",
-      "anthropic.claude-instant-v1",
-      "meta.llama2-70b-chat-v1",
-      "amazon.titan-text-express-v1",
-      "cohere.command-text-v14"
-    ];
-    this.model = model || "anthropic.claude-3-sonnet-20240229-v1:0";
-    this.device_map = device_map;
+    this.model = model || 'anthropic.claude-3-sonnet-20240229-v1:0';
     this.apiKey = apiKey;
     this.apiEndpoint = apiEndpoint;
     this.provider = "bedrock";
+    this.device_map = null;
     
-    // Initialize AWS client with provided config or environment variables
-    this.awsClient = new AwsClient({
-      accessKeyId: awsConfig.accessKeyId || process.env.AWS_ACCESS_KEY_ID || '',
-      secretAccessKey: awsConfig.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY || '',
-      region: awsConfig.region || 'us-east-1',
-      service: 'bedrock'
+    // Initialize AWS client with provided or environment variable credentials
+    this.client = new BedrockRuntimeClient({
+      credentials: {
+        accessKeyId: awsConfig?.accessKeyId || process.env.AWS_ACCESS_KEY_ID || '',
+        secretAccessKey: awsConfig?.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY || ''
+      },
+      region: awsConfig?.region || process.env.AWS_REGION || 'us-east-1'
     });
   }
 
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
-    try {
-      const modelId = options.model || this.model || "anthropic.claude-3-sonnet-20240229-v1:0";
-      const messages = transformMessages(options.messages);
+    const {
+      messages,
+      model = this.model,
+      max_tokens = 1000,
+      temperature = 0.7,
+      top_p = 0.9,
+      tools,
+      stream = false
+    } = options;
 
-      // Extract host and path from endpoint
-      const url = new URL(this.apiEndpoint || '');
-      const host = url.host;
+    // Extract account ID and gateway ID from the endpoint
+    const cfUrl = new URL(this.apiEndpoint || 'https://gateway.ai.cloudflare.com');
 
-      // Prepare request body according to Bedrock format
-      const requestBody = {
-        modelId,
-        input: {
-          messages: messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          })),
-          max_tokens: options.max_tokens || 100,
-          temperature: options.temperature,
-          top_p: options.top_p,
-          tools: options.tools ? transformTools(options.tools) : undefined
-        }
-      };
+    // Use the endpoint URL directly
+    const cloudflareUrl = this.apiEndpoint || 'https://gateway.ai.cloudflare.com';
 
-      // Make request to Cloudflare AI Gateway
-      const response = await axios.post(
-        this.apiEndpoint || '',
-        requestBody,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Host': host,
-            'X-API-Key': this.apiKey
-          }
-        }
-      );
+    // Prepare the request body according to Bedrock format
+    const requestBody = {
+      messages: transformMessages(messages),
+      max_tokens,
+      temperature,
+      top_p,
+      ...(tools && { tools: transformTools(tools as Tool[]) })
+    };
 
-      if (!response.data) {
-        throw new Error('No response data received from Bedrock');
+    // Make the request to Cloudflare AI Gateway
+    const response = await axios.post(cloudflareUrl, requestBody, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+        'User-Agent': 'multillm-node/1.0.0',
+        'Host': 'gateway.ai.cloudflare.com',
+        'X-Forwarded-Host': 'gateway.ai.cloudflare.com',
+        'X-Forwarded-Proto': 'https',
+        'Origin': 'https://gateway.ai.cloudflare.com',
+        'CF-Access-Client-Id': this.apiKey,
+        'CF-Access-Client-Secret': this.apiKey
       }
+    });
 
-      // Handle the response
-      let content = '';
-      let toolCalls;
-
-      if (response.data.content && response.data.content[0]) {
-        const responseContent = response.data.content[0];
-        content = responseContent.text || '';
-        
-        if (responseContent.tool_calls) {
-          toolCalls = responseContent.tool_calls.map((call: any) => ({
-            id: `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            type: call.type,
-            function: {
-              name: call.function.name,
-              arguments: call.function.arguments
-            }
-          }));
-        }
+    // Extract content and tool calls from the response
+    const responseData = response.data;
+    return {
+      id: `bedrock-${Date.now()}`,
+      object: 'chat.completion',
+      created: Date.now(),
+      model,
+      choices: [{
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: responseData.content || '',
+          tool_calls: responseData.tool_calls || []
+        },
+        finish_reason: responseData.finish_reason || 'stop'
+      }],
+      usage: {
+        prompt_tokens: responseData.usage?.prompt_tokens || 0,
+        completion_tokens: responseData.usage?.completion_tokens || 0,
+        total_tokens: responseData.usage?.total_tokens || 0
       }
-
-      return {
-        id: `bedrock-${Date.now()}`,
-        object: 'chat.completion',
-        created: Date.now(),
-        model: modelId,
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: content,
-            tool_calls: toolCalls
-          },
-          finish_reason: toolCalls ? 'tool_calls' : 'stop'
-        }],
-        usage: {
-          prompt_tokens: 0,
-          completion_tokens: 0,
-          total_tokens: 0
-        }
-      };
-    } catch (error) {
-      throw handleError(error);
-    }
+    };
   }
 
   getProviders(): Provider[] {
@@ -192,13 +161,13 @@ class Bedrock implements LLMProvider {
   }
 
   async getModels() {
-    return this.defaultModels.map(modelId => ({
-      id: modelId,
-      name: modelId,
+    return [{
+      id: this.model,
+      name: this.model,
       provider: "Bedrock",
       type: "chat"
-    }));
+    }];
   }
 }
 
-export default Bedrock; 
+export default Bedrock;
