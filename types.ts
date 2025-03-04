@@ -24,7 +24,8 @@ export type SupportedProvider =
   | "groq"
   | "replicate"
   | "openrouter"
-  | "cloudflare";
+  | "cloudflare"
+  | "deepseek";
 
 export interface AWSConfig {
   accessKeyId?: string;

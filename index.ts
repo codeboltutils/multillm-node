@@ -17,6 +17,8 @@ import CloudflareAI from './providers/cloudflare/index';
 import Groq from './providers/groq/index';
 import Grok from './providers/grok/index';
 import Replicate from './providers/replicate/index';
+import DeepseekAI from './providers/deepseek/index';
+
 class Multillm implements LLMProvider {
   public provider: SupportedProvider;
   public device_map: string | null;
@@ -82,7 +84,6 @@ class Multillm implements LLMProvider {
         this.instance = new HuggingFace(this.model, this.device_map, this.apiKey, this.apiEndpoint);
         break;
       }
-
       case "grok": {
         this.instance = new Grok(this.model, this.device_map, this.apiKey, this.apiEndpoint);
         break;
@@ -107,8 +108,8 @@ class Multillm implements LLMProvider {
         });
         break;
       }
-      case "groq": {
-        this.instance = new Groq(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+      case "deepseek": {
+        this.instance = new DeepseekAI(this.model, this.device_map, this.apiKey, this.apiEndpoint);
         break;
       }
       default: {
@@ -162,7 +163,14 @@ class Multillm implements LLMProvider {
         keyAdded: this.provider === 'anthropic' && !!this.apiKey,
         category: 'cloudProviders' as const
       },
-      
+      {
+        id: 5,
+        logo: "https://github.com/deepseek-ai.png",
+        name: "Deepseek",
+        apiUrl: "https://api.deepseek.com/v1",
+        keyAdded: this.provider === 'deepseek' && !!this.apiKey,
+        category: 'cloudProviders' as const
+      },
       {
         id: 6,
         logo: "https://github.com/mistralai.png",

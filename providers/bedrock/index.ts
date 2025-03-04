@@ -18,6 +18,9 @@ interface BedrockMessage {
 }
 
 function transformMessages(messages: ChatMessage[]): BedrockMessage[] {
+  if (!messages || messages.length === 0) {
+    throw new Error('Messages array cannot be empty');
+  }
   return messages.map(message => ({
     role: message.role === 'function' || message.role === 'tool' ? 'user' : 
           message.role === 'assistant' ? 'assistant' : 
@@ -29,14 +32,19 @@ function transformMessages(messages: ChatMessage[]): BedrockMessage[] {
 function transformTools(tools?: Tool[]): Tool[] | undefined {
   if (!tools) return undefined;
   
-  return tools.map(tool => ({
-    type: 'function' as const,
-    function: {
-      name: tool.function.name,
-      description: tool.function.description,
-      parameters: tool.function.parameters
+  return tools.map(tool => {
+    if (!tool.function?.name) {
+      throw new Error('Tool function name is required');
     }
-  }));
+    return {
+      type: 'function' as const,
+      function: {
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: tool.function.parameters
+      }
+    };
+  });
 }
 
 class Bedrock implements LLMProvider {
@@ -55,6 +63,13 @@ class Bedrock implements LLMProvider {
     apiEndpoint: string | null = null,
     awsConfig: AWSConfig = {}
   ) {
+    if (!apiKey) {
+      throw new Error('API key is required for Bedrock provider');
+    }
+    if (!apiEndpoint) {
+      throw new Error('API endpoint is required for Bedrock provider');
+    }
+
     this.defaultModels = [
       "anthropic.claude-3-sonnet-20240229-v1:0",
       "anthropic.claude-3-haiku-20240307-v1:0",
@@ -84,7 +99,7 @@ class Bedrock implements LLMProvider {
       const messages = transformMessages(options.messages);
 
       // Extract host and path from endpoint
-      const url = new URL(this.apiEndpoint || process.env.AWS_BEDROCK_ENDPOINT || '');
+      const url = new URL(this.apiEndpoint || '');
       const host = url.host;
 
       // Prepare request body according to Bedrock format
@@ -99,11 +114,6 @@ class Bedrock implements LLMProvider {
           temperature: options.temperature,
           top_p: options.top_p,
           tools: options.tools ? transformTools(options.tools) : undefined
-        },
-        auth: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-          region: 'us-east-1'
         }
       };
 
@@ -115,10 +125,15 @@ class Bedrock implements LLMProvider {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.apiKey}`,
-            'Host': host
+            'Host': host,
+            'X-API-Key': this.apiKey
           }
         }
       );
+
+      if (!response.data) {
+        throw new Error('No response data received from Bedrock');
+      }
 
       // Handle the response
       let content = '';
