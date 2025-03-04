@@ -1,4 +1,4 @@
-export function handleError(error: unknown): { error: string } {
+export function handleError(error: unknown): { error: { message: string; type?: string; code?: string } } {
   console.error('Error:', error);
   
   if (error && typeof error === 'object' && 'response' in error) {
@@ -6,14 +6,35 @@ export function handleError(error: unknown): { error: string } {
     console.error('Response data:', axiosError.response.data);
     console.error('Response status:', axiosError.response.status);
     console.error('Response headers:', axiosError.response.headers);
-    return { error: axiosError.response.data.error || axiosError.response.data };
+    return { 
+      error: {
+        message: axiosError.response.data.message || 'An unknown error occurred',
+        type: axiosError.response.data.type || 'error',
+        code: axiosError.response.data.code
+      }
+    };
   } else if (error && typeof error === 'object' && 'request' in error) {
     console.error('Request:', (error as { request: any }).request);
-    return { error: 'No response received from server' };
+    return { 
+      error: {
+        message: 'No response received from server',
+        type: 'error'
+      }
+    };
   } else if (error instanceof Error) {
     console.error('Error message:', error.message);
-    return { error: error.message || 'An unknown error occurred' };
+    return { 
+      error: {
+        message: error.message || 'An unknown error occurred',
+        type: 'error'
+      }
+    };
   } else {
-    return { error: 'An unknown error occurred' };
+    return { 
+      error: {
+        message: 'An unknown error occurred',
+        type: 'error'
+      }
+    };
   }
 } 

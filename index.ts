@@ -176,8 +176,7 @@ class Multillm implements LLMProvider {
         logo: "https://github.com/mistralai.png",
         name: "Mistral",
         apiUrl: "https://api.mistral.ai/v1",
-        keyAdded: false,
-        key:"",
+        keyAdded: this.provider === 'mistral' && !!this.apiKey,
         category: 'cloudProviders',
       },
       {
