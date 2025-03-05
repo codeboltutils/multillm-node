@@ -97,7 +97,7 @@ class Multillm implements LLMProvider {
         break;
       }
       case "bedrock": {
-        this.instance = new Bedrock(this.model, this.apiKey, this.apiEndpoint, config.aws);
+        this.instance = new Bedrock(this.model,this.device_map, this.apiKey, this.apiEndpoint, this.config);
         break;
       }
       case "cloudflare": {
