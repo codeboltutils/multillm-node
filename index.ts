@@ -11,7 +11,6 @@ import Gemini from './providers/gemini/index';
 import Ollama from './providers/ollama/index';
 import OpenRouter from './providers/openrouter/index';
 import HuggingFace from './providers/huggingface/index';
-import ReplicateAI from './providers/replicate/index';
 import Bedrock from './providers/bedrock/index';
 import CloudflareAI from './providers/cloudflare/index';
 import Groq from './providers/groq/index';
