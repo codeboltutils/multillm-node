@@ -85,7 +85,8 @@ class OpenAI implements LLMProvider {
   async createCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
     try {
       const completion = await this.client.chat.completions.create({
-        messages: transformMessages(options.messages),
+        // @ts-ignore
+        messages: options.messages,
         model: options.model || this.model || "gpt-3.5-turbo",
         temperature: options.temperature,
         top_p: options.top_p,
@@ -103,10 +104,13 @@ class OpenAI implements LLMProvider {
 
   async getModels(): Promise<any> {
     try {
-      const response = await this.client.models.list();
-      return response.data
-        .filter(model => this.chatModels.includes(model.id))
-        .map(model => ({
+      const response = await axios.get(`${this.apiEndpoint}/models`, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`
+        }
+      });
+      return response.data.data
+        .map((model: any) => ({
           id: model.id,
           name: model.id,
           provider: "OpenAI",
