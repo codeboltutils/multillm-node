@@ -75,7 +75,8 @@ export interface ChatCompletionOptions {
     };
   }>;
   stop?: string | string[];
-  supportTools?:boolean
+  supportTools?:boolean;
+  tool_choice?: 'auto' | 'none' | { type: 'function'; function: { name: string } };
   
 }
 
@@ -120,3 +121,113 @@ export type ToolSchema = {
     required: string[];
   };
 };
+
+
+
+
+
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+export interface FunctionCall {
+  name: string;
+  arguments: string;
+}
+
+
+
+export interface Tool {
+  type: 'function';
+  function: {
+    name: string;
+    description?: string;
+    parameters?: any;
+  };
+}
+
+
+
+export interface Choice {
+  index: number;
+  message?: ChatMessage;
+  delta?: ChatMessage;
+  finish_reason?: 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
+}
+
+export interface Usage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+
+
+// Anthropic Types
+export interface AnthropicMessage {
+  role: 'user' | 'assistant';
+  content: string | AnthropicContent[];
+}
+
+export interface AnthropicContent {
+  type: 'text' | 'tool_use' | 'tool_result';
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: any;
+  content?: string;
+  tool_use_id?: string;
+  is_error?: boolean;
+}
+
+export interface AnthropicTool {
+  name: string;
+  description?: string;
+  input_schema: any;
+}
+
+export interface AnthropicRequest {
+  model: string;
+  max_tokens: number;
+  messages: AnthropicMessage[];
+  system?: string;
+  temperature?: number;
+  top_p?: number;
+  tools?: AnthropicTool[];
+  tool_choice?: { type: 'auto' | 'any' | 'tool'; name?: string };
+  stop_sequences?: string[];
+  stream?: boolean;
+}
+
+export interface AnthropicResponse {
+  id: string;
+  type: 'message';
+  role: 'assistant';
+  content: AnthropicContent[];
+  model: string;
+  stop_reason: 'end_turn' | 'max_tokens' | 'stop_sequence' | 'tool_use';
+  stop_sequence?: string;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+  };
+}
+
+// Error handling types
+export interface LLMError {
+  message: string;
+  type?: string;
+  code?: string;
+  provider?: string;
+  model?: string;
+  suggestion?: string;
+}
+
+export interface LLMErrorResponse {
+  error: LLMError;
+}
