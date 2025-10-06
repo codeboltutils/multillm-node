@@ -14,3 +14,4 @@ export { default as CodeBolt } from './codebolt';
 export { default as OpenRouter } from './openrouter';
 export { default as Cloudflare } from './cloudflare';
 export { default as DeepseekAI } from './deepseek';
+export { default as ZAi } from './zai';

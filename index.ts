@@ -17,6 +17,7 @@ import Groq from './providers/groq/index';
 import Grok from './providers/grok/index';
 import Replicate from './providers/replicate/index';
 import DeepseekAI from './providers/deepseek/index';
+import ZAi from './providers/zai/index';
 
 class Multillm implements LLMProvider {
   public provider: SupportedProvider;
@@ -96,7 +97,7 @@ class Multillm implements LLMProvider {
         break;
       }
       case "bedrock": {
-        this.instance = new Bedrock(this.model,this.device_map, this.apiKey, this.apiEndpoint, this.config);
+        this.instance = new Bedrock(this.model, this.device_map, this.apiKey, this.apiEndpoint, this.config);
         break;
       }
       case "cloudflare": {
@@ -109,6 +110,11 @@ class Multillm implements LLMProvider {
       }
       case "deepseek": {
         this.instance = new DeepseekAI(this.model, this.device_map, this.apiKey, this.apiEndpoint);
+        break;
+      }
+
+      case "zai": {
+        this.instance = new ZAi(this.model, this.device_map, this.apiKey, this.apiEndpoint);
         break;
       }
       default: {
@@ -232,6 +238,13 @@ export function getProviders(): Provider[] {
       logo: "https://github.com/cloudflare.png",
       name: "Cloudflare AI",
       apiUrl: "https://gateway.ai.cloudflare.com/v1",
+      category: 'cloudProviders'
+    },
+    {
+      id: 16,
+      logo: "https://docs.aimlapi.com/~gitbook/image?url=https%3A%2F%2F2584696304-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Forganizations%252FisNk5xPnJebTWJa4JCg5%252Fsites%252Fsite_AIphz%252Ficon%252F3vjfczmsHtaYTsiXVtck%252FLogotype%2520%282%29.png%3Falt%3Dmedia%26token%3D0e80ddab-9c08-4b49-8189-df24733c5e4a&width=32&dpr=2&quality=100&sign=80d75ef2&sv=2",
+      name: "zai",
+      apiUrl: "https://api.z.ai/api/coding/paas/v4",
       category: 'cloudProviders'
     }
   ];

@@ -23,7 +23,8 @@ export type SupportedProvider =
   | "replicate"
   | "openrouter"
   | "cloudflare"
-  | "deepseek";
+  | "deepseek"
+  | "zai";
 
 export interface AWSConfig {
   accessKeyId?: string;
