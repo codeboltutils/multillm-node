@@ -94,18 +94,13 @@
 
 //   async getModels(): Promise<any> {
 //     try {
-//       const response = await axios.get(`${this.apiEndpoint}/models`, {
-//         headers: {
-//           'Authorization': `Bearer ${this.apiKey}`
-//         }
-//       });
-//       return response.data.data
-//         .map((model: any) => ({
-//           id: model.id,
-//           name: model.id,
-//           provider: "OpenAI",
-//           type: "chat"
-//         }));
+//       // Return static glm-4.6 model instead of fetching from API
+//       return [{
+//         id: 'glm-4.6',
+//         name: 'glm-4.6',
+//         provider: 'zai',
+//         type: 'chat'
+//       }];
 //     } catch (error) {
 //       throw handleError(error);
 //     }
@@ -243,18 +238,12 @@ class ZAi implements LLMProvider {
 
   async getModels(): Promise<any> {
     try {
-      const response = await axios.get(`${this.apiEndpoint}/models`, {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`
-        }
-      });
-      return response.data.data
-        .map((model: any) => ({
-          id: model.id,
-          name: model.id,
-          provider: "OpenAI",
-          type: "chat"
-        }));
+        return [{
+        id: 'glm-4.6',
+        name: 'glm-4.6',
+        provider: 'zai',
+        type: 'chat'
+      }];
     } catch (error) {
       throw handleError(error);
     }
